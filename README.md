@@ -92,6 +92,24 @@ Longer jobs pay better. Stay out of the harbor.
 
 Find the yellow beacon to start a job, follow the cyan beacons to finish it.
 
+## Installing on Windows
+
+Windows SmartScreen will warn about the installer because it is a new
+unsigned binary with no download reputation yet. That is expected for an
+indie release without a paid code signing certificate. To proceed:
+
+1. Click **More info** on the SmartScreen dialog
+2. Click **Run anyway**
+
+Or unblock the file once in PowerShell before starting it:
+
+```powershell
+Unblock-File "$env:USERPROFILE\Downloads\NeonHarborSetup.exe"
+```
+
+This only happens for the first install. The built-in auto updater
+downloads future versions directly and never triggers SmartScreen again.
+
 ## Run from source
 
 ```bash

@@ -1,0 +1,18 @@
+# Winget manifest template for Neon Harbor.
+# Submitting this to github.com/microsoft/winget-pkgs lets players install
+# with `winget install OutBlade.NeonHarbor`, which never triggers
+# SmartScreen because Microsoft validates every submitted binary.
+#
+# To submit a version, the easiest path is wingetcreate:
+#   wingetcreate new https://github.com/OutBlade/neon-harbor/releases/download/v1.4.0/NeonHarborSetup.exe
+# then follow the prompts and let it open the pull request.
+#
+# Values below are the answers the wizard will ask for.
+
+PackageIdentifier: OutBlade.NeonHarbor
+PackageName: Neon Harbor
+Publisher: OutBlade
+License: MIT
+ShortDescription: Open world night city driving game with missions, heat and a harbor.
+PackageUrl: https://github.com/OutBlade/neon-harbor
+InstallerType: inno
