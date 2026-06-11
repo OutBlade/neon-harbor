@@ -14,6 +14,20 @@ var controls_panel: PanelContainer
 var orbit_t := 0.0
 var tick := 0.0
 var won := false
+var prev_stars := 0
+
+const COP_BANTER: Array[String] = [
+	"Dispatch: suspect is driving like a shopping cart",
+	"Unit 3: he honked the clown horn at me. Requesting emotional backup",
+	"Dispatch: be advised, suspect just hit a hot dog cart. Mustard everywhere",
+	"Unit 7: I am not going into the harbor again",
+	"Dispatch: suspect described as a glowing rectangle",
+	"Unit 12: he is doing the thing with the ramp again",
+	"Dispatch: all units, bring napkins",
+	"Unit 5: my car is also a rectangle. This is very confusing",
+	"Dispatch: whoever keeps petting cats on duty, stop it",
+	"Unit 9: the pigeons saw everything. They refuse to talk",
+]
 
 func _ready() -> void:
 	add_to_group("main")
@@ -79,6 +93,8 @@ func start_game() -> void:
 	add_child(missions)
 	missions.setup(city)
 	missions.all_completed.connect(_on_campaign_done)
+	prev_stars = 0
+	Game.heat_changed.connect(_on_stars_changed)
 	Game.playing = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Game.notify.emit("Welcome to Neon Harbor. Find the yellow beacon")
@@ -86,6 +102,11 @@ func start_game() -> void:
 		_spawn_traffic_car()
 	for i in 34:
 		_spawn_ped()
+
+func _on_stars_changed(stars: int) -> void:
+	if stars > prev_stars and Game.playing:
+		Game.notify.emit(COP_BANTER[Game.rng.randi_range(0, COP_BANTER.size() - 1)])
+	prev_stars = stars
 
 func _on_campaign_done() -> void:
 	if won:
@@ -99,6 +120,8 @@ func on_player_busted() -> void:
 		return
 	Game.total_busts += 1
 	Game.sound.play_ui("fail")
+	Game.slowmo(0.35, 0.9)
+	Game.camera_rig.cine_t = 1.5
 	Game.hud.show_big("BUSTED", HUD.RED)
 	if missions != null:
 		missions.on_player_caught()
@@ -112,6 +135,8 @@ func on_player_wasted(reason: String) -> void:
 		return
 	Game.total_wrecks += 1
 	Game.sound.play_ui("fail")
+	Game.slowmo(0.35, 0.9)
+	Game.camera_rig.cine_t = 1.5
 	Game.hud.show_big(reason, HUD.RED)
 	if missions != null:
 		missions.on_player_caught()
@@ -190,6 +215,10 @@ func _maintain_peds() -> void:
 			ped.assign_block(_block_near_player())
 	for i in 34 - alive:
 		_spawn_ped()
+	# Keep the pigeon population thriving.
+	var flocks := get_tree().get_nodes_in_group("pigeons").size()
+	for i in 10 - flocks:
+		city.spawn_pigeon_flock(_block_near_player())
 
 func _block_near_player() -> Vector3:
 	var p := Game.player_position()
@@ -253,6 +282,16 @@ func _build_menu() -> void:
 	_menu_button(vb, "CONTROLS", func() -> void:
 		Game.sound.play_ui("click")
 		controls_panel.visible = not controls_panel.visible)
+	var gfx := Button.new()
+	gfx.text = "GRAPHICS: FANCY" if Game.fancy_graphics else "GRAPHICS: FAST"
+	gfx.add_theme_font_size_override("font_size", 24)
+	gfx.pressed.connect(func() -> void:
+		Game.sound.play_ui("click")
+		Game.fancy_graphics = not Game.fancy_graphics
+		gfx.text = "GRAPHICS: FANCY" if Game.fancy_graphics else "GRAPHICS: FAST"
+		city.apply_quality(Game.fancy_graphics)
+		Game.save_game())
+	vb.add_child(gfx)
 	_menu_button(vb, "RESET SAVE", func() -> void:
 		Game.sound.play_ui("click")
 		Game.wipe_save()
@@ -364,4 +403,4 @@ func _snap(name_: String) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("res://shots/%s.png" % name_)
-	print("saved shot: ", name_)
+	print("saved shot: %s  FPS: %d" % [name_, int(Engine.get_frames_per_second())])

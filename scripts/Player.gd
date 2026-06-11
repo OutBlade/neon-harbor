@@ -11,6 +11,7 @@ const GRAVITY := 14.0
 
 var body_visual: Node3D
 var nearest_car: VehicleBody3D = null
+var nearest_cat: Node3D = null
 
 func _ready() -> void:
 	add_to_group("player")
@@ -86,19 +87,32 @@ func _physics_process(delta: float) -> void:
 	else:
 		body_visual.rotation.x = lerpf(body_visual.rotation.x, 0.0, 6.0 * delta)
 	_update_car_prompt()
-	if Input.is_action_just_pressed("interact") and nearest_car != null:
-		nearest_car.enter(self)
+	if Input.is_action_just_pressed("interact"):
+		if nearest_cat != null:
+			nearest_cat.pet()
+		elif nearest_car != null:
+			nearest_car.enter(self)
 
 func _update_car_prompt() -> void:
 	nearest_car = null
+	nearest_cat = null
 	var best := 4.0
 	for car in get_tree().get_nodes_in_group("cars"):
 		var d: float = car.global_position.distance_to(global_position)
 		if d < best:
 			best = d
 			nearest_car = car
+	var best_cat := 2.6
+	for cat in get_tree().get_nodes_in_group("cats"):
+		var d: float = cat.global_position.distance_to(global_position)
+		if d < best_cat:
+			best_cat = d
+			nearest_cat = cat
 	if Game.hud != null:
-		Game.hud.set_prompt("Press E to enter the car" if nearest_car != null else "")
+		if nearest_cat != null:
+			Game.hud.set_prompt("Press E to pet the cat")
+		else:
+			Game.hud.set_prompt("Press E to enter the car" if nearest_car != null else "")
 
 func hit_by_car(car: VehicleBody3D) -> void:
 	if Game.player_car == car:

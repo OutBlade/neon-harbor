@@ -25,13 +25,13 @@ func setup(citygen: CityGen) -> void:
 	missions = [
 		{
 			"id": "package", "title": "PACKAGE RUN", "reward": 350, "type": "delivery",
-			"brief": "Grab the package, deliver it before the timer dies.",
+			"brief": "Grab the package. Do not ask what is inside. Especially do not smell it.",
 			"start": Vector3(40, 0, 24), "pickup": Vector3(-120, 0, -97),
 			"drop": Vector3(0, 0, 237), "time": 95.0,
 		},
 		{
 			"id": "race", "title": "NEON SPRINT", "reward": 500, "type": "race",
-			"brief": "A car and five checkpoints. Beat the clock.",
+			"brief": "Five checkpoints, one car, zero respect for traffic law.",
 			"start": Vector3(L.call(2), 0, 236), "time": 95.0,
 			"checkpoints": [
 				Vector3(L.call(1), 0, L.call(8)), Vector3(L.call(1), 0, L.call(4)),
@@ -41,7 +41,7 @@ func setup(citygen: CityGen) -> void:
 		},
 		{
 			"id": "taxi", "title": "NIGHT CAB", "reward": 450, "type": "taxi",
-			"brief": "Pick up the fare, get them across town.",
+			"brief": "Pick up the fare. He is late for a meeting he refuses to describe.",
 			"start": Vector3(10, 0, 46), "pickup": Vector3(140, 0, -72),
 			"drop": Vector3(-93, 0, -144), "time": 100.0,
 		},
@@ -52,12 +52,12 @@ func setup(citygen: CityGen) -> void:
 		},
 		{
 			"id": "rooftop", "title": "ROOFTOP CACHE", "reward": 400, "type": "rooftop",
-			"brief": "A cache sits on the freight warehouse roof. Crates are a staircase if you are brave.",
+			"brief": "A cache sits on the freight warehouse roof. Crates are a staircase if you believe in yourself.",
 			"start": Vector3(-72, 0, 99),
 		},
 		{
 			"id": "speed", "title": "NIGHT RIDER", "reward": 700, "type": "speed",
-			"brief": "Hold 85 km/h for six seconds. Do not lift.",
+			"brief": "Hold 85 km/h for six seconds. Your insurance is not real anyway.",
 			"start": Vector3(144, 0, 236),
 		},
 	]

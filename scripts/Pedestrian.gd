@@ -11,6 +11,8 @@ var corner_idx := 0
 var flee_timer := 0.0
 var flee_dir := Vector3.ZERO
 var dead := false
+var flying := false
+var fly_vel := Vector3.ZERO
 var visual: Node3D
 
 func _ready() -> void:
@@ -50,6 +52,17 @@ func assign_block(block_center: Vector3) -> void:
 	position = corners[corner_idx] + Vector3(0, CityGen.CURB_H + 0.1, 0)
 
 func _physics_process(delta: float) -> void:
+	if flying:
+		# Comedy ragdoll arc: pure kinematics, collisions are off.
+		global_position += fly_vel * delta
+		fly_vel.y -= 22.0 * delta
+		visual.rotation.x += 9.0 * delta
+		if global_position.y <= 0.4:
+			global_position.y = 0.4
+			flying = false
+			visual.rotation.x = -PI / 2.0
+			visual.position.y = 0.25
+		return
 	if dead:
 		return
 	if not is_on_floor():
@@ -88,6 +101,26 @@ func scare(from: Vector3) -> void:
 	flee_dir.y = 0.0
 	flee_dir = flee_dir.normalized()
 	flee_timer = 4.0
+	if is_on_floor():
+		velocity.y = 3.5
+	_exclaim()
+
+func _exclaim() -> void:
+	if get_node_or_null("Exclaim") != null:
+		return
+	var mark := Label3D.new()
+	mark.name = "Exclaim"
+	mark.text = "!"
+	mark.font_size = 140
+	mark.pixel_size = 0.01
+	mark.modulate = Color(1.0, 0.9, 0.2)
+	mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	mark.position = Vector3(0, 2.3, 0)
+	add_child(mark)
+	var t := get_tree().create_timer(0.9)
+	t.timeout.connect(func() -> void:
+		if is_instance_valid(mark):
+			mark.queue_free())
 
 func die(car: VehicleBody3D) -> void:
 	if dead:
@@ -96,8 +129,18 @@ func die(car: VehicleBody3D) -> void:
 	if car.is_player:
 		Game.add_heat(1.0)
 		Game.notify.emit("Hit and run! The heat is on")
-	visual.rotation.x = -PI / 2.0
-	visual.position.y = 0.25
+		if car.linear_velocity.length() > 12.0:
+			Game.notify.emit("AIRTIME! That one is going to trend")
+	# Launch into a spinning ragdoll arc.
+	flying = true
+	fly_vel = car.linear_velocity * 1.3 + Vector3(randf_range(-2, 2), 7.5, randf_range(-2, 2))
+	var p := AudioStreamPlayer3D.new()
+	p.stream = Game.sound.stream("clang")
+	p.volume_db = -10.0
+	p.unit_size = 8.0
+	add_child(p)
+	p.play()
+	p.finished.connect(p.queue_free)
 	for child in get_children():
 		if child is CollisionShape3D:
 			child.set_deferred("disabled", true)

@@ -35,6 +35,12 @@ var dock_point := Vector3.ZERO
 var light_budget := 44
 var building_mats: Array = []
 var sign_count := 0
+var park_centers: Array = []
+var environment: Environment
+var blinkers: Array = []
+var blink_on := true
+var blink_t := 0.0
+var flickers: Array = []
 
 static func line(k: int) -> float:
 	return -N * PITCH / 2.0 + k * PITCH
@@ -68,6 +74,10 @@ func build() -> void:
 			else:
 				_block(i, j)
 	_parked_cars()
+	_ramps()
+	_beach_balls()
+	_cats()
+	_pigeons()
 	spawn_point = block_center(center, center) + Vector3(0, CURB_H + 1.2, SLAB / 2.0 - 2.0)
 	station_point = block_center(center, center - 1) + Vector3(0, CURB_H + 1.2, 0)
 	hospital_point = block_center(center + 1, center) + Vector3(0, CURB_H + 1.2, 0)
@@ -77,8 +87,38 @@ func build() -> void:
 
 func _environment() -> void:
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.012, 0.012, 0.035)
+	environment = env
+	env.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_mat := ShaderMaterial.new()
+	var shader := Shader.new()
+	shader.code = """
+shader_type sky;
+// Night sky: horizon glow, hashed star field, a moon with a soft halo.
+void sky() {
+	vec3 dir = EYEDIR;
+	float h = clamp(dir.y, -1.0, 1.0);
+	vec3 horizon = vec3(0.10, 0.03, 0.16);
+	vec3 zenith = vec3(0.004, 0.004, 0.018);
+	vec3 col = mix(horizon, zenith, clamp(h * 2.4 + 0.12, 0.0, 1.0));
+	if (h > 0.02) {
+		vec3 cell = floor(dir * 170.0);
+		float star = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+		float tw = 0.75 + 0.25 * sin(TIME * 2.0 + star * 40.0);
+		if (star > 0.997) {
+			col += vec3(0.75, 0.85, 1.0) * (star - 0.997) * 300.0 * tw;
+		}
+	}
+	vec3 moon_dir = normalize(vec3(0.45, 0.55, -0.6));
+	float md = dot(dir, moon_dir);
+	col += vec3(0.85, 0.9, 1.0) * smoothstep(0.9991, 0.9995, md) * 1.6;
+	col += vec3(0.35, 0.4, 0.65) * smoothstep(0.995, 0.9995, md) * 0.16;
+	COLOR = col;
+}
+"""
+	sky_mat.shader = shader
+	sky.sky_material = sky_mat
+	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.25, 0.28, 0.45)
 	env.ambient_light_energy = 0.8
@@ -89,9 +129,21 @@ func _environment() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.07, 0.05, 0.12)
 	env.fog_density = 0.0035
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.18
+	env.adjustment_contrast = 1.04
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	apply_quality(Game.fancy_graphics)
+
+func apply_quality(fancy: bool) -> void:
+	# FANCY adds screen space reflections for the wet street look.
+	environment.ssr_enabled = fancy
+	environment.ssr_max_steps = 32
+	environment.glow_intensity = 0.7 if fancy else 0.55
+	for rain in get_tree().get_nodes_in_group("rain"):
+		rain.emitting = fancy
 	var moon := DirectionalLight3D.new()
 	moon.light_color = Color(0.6, 0.7, 1.0)
 	moon.light_energy = 0.35
@@ -101,21 +153,40 @@ func _environment() -> void:
 	add_child(moon)
 
 func _ground_and_water() -> void:
+	# Rain-slick asphalt: low roughness so SSR mirrors the neon at night.
 	var road_mat := _mat(Color(0.045, 0.045, 0.055))
-	road_mat.roughness = 0.9
+	road_mat.roughness = 0.22
+	road_mat.metallic = 0.45
 	var half := N * PITCH / 2.0
 	# Asphalt base covers the city footprint, stops where the harbor begins.
 	var ground_depth := half * 2.0 + 80.0
 	var ground := _static_box(self, Vector3(half * 2.0 + 80.0, 2.0, ground_depth),
 		Vector3(0, -1.0, (half + 4.0) - ground_depth / 2.0), road_mat)
 	ground.name = "Ground"
-	# Harbor water south of the city.
-	var water_mat := _mat(Color(0.02, 0.06, 0.1), Color(0.05, 0.35, 0.5), 0.9)
-	water_mat.roughness = 0.05
-	water_mat.metallic = 0.6
-	var water := _box(self, Vector3(half * 2.0 + 80.0, 0.2, 220.0),
-		Vector3(0, -1.1, half + 4.0 + 110.0), water_mat)
+	# Harbor water south of the city, animated swell shader.
+	var water_mat := ShaderMaterial.new()
+	var ws := Shader.new()
+	ws.code = """
+shader_type spatial;
+void fragment() {
+	vec2 uv = UV * 70.0;
+	float w = sin(uv.x * 3.1 + TIME * 1.1) * 0.5 + sin(uv.y * 4.3 - TIME * 0.8) * 0.3;
+	w += sin((uv.x + uv.y) * 6.0 + TIME * 1.7) * 0.2;
+	ALBEDO = vec3(0.012, 0.05, 0.09);
+	ROUGHNESS = 0.06;
+	METALLIC = 0.55;
+	EMISSION = vec3(0.02, 0.22, 0.32) * (0.45 + 0.3 * w);
+}
+"""
+	water_mat.shader = ws
+	var water := MeshInstance3D.new()
+	var wmesh := BoxMesh.new()
+	wmesh.size = Vector3(half * 2.0 + 80.0, 0.2, 220.0)
+	wmesh.material = water_mat
+	water.mesh = wmesh
+	water.position = Vector3(0, -1.1, half + 4.0 + 110.0)
 	water.name = "Water"
+	add_child(water)
 	# Seabed so vehicles that fly in come to rest before the rescue teleport.
 	var seabed := StaticBody3D.new()
 	var sc := CollisionShape3D.new()
@@ -178,6 +249,17 @@ func _block(i: int, j: int) -> void:
 	for lot in lots:
 		if rng.randf() < 0.78:
 			_building(c + Vector3(lot.x, 0, lot.y))
+	# Breakable street furniture along the sidewalks.
+	for n in rng.randi_range(1, 3):
+		var kinds := ["trash", "trash", "mailbox", "cart"]
+		var prop := Prop.new()
+		prop.setup(kinds[rng.randi_range(0, kinds.size() - 1)])
+		var along := rng.randf_range(-14.0, 14.0)
+		var edge := SLAB / 2.0 - 1.0
+		var offsets := [Vector3(along, 0, edge), Vector3(along, 0, -edge),
+			Vector3(edge, 0, along), Vector3(-edge, 0, along)]
+		prop.position = c + offsets[rng.randi_range(0, 3)] + Vector3(0, CURB_H + 0.15, 0)
+		add_child(prop)
 
 func _building(base: Vector3) -> void:
 	var w := rng.randf_range(10.0, 15.0)
@@ -185,22 +267,58 @@ func _building(base: Vector3) -> void:
 	var floors := rng.randi_range(3, 14)
 	var h := floors * 4.0
 	var mat: StandardMaterial3D = building_mats[rng.randi_range(0, building_mats.size() - 1)]
-	var body := _static_box(self, Vector3(w, h, d), base + Vector3(0, CURB_H + h / 2.0, 0), mat)
+	# Tall towers get a stepped silhouette of shrinking tiers.
+	var tiers: Array = [[w, d, h]]
+	if floors >= 9:
+		tiers = [[w, d, h * 0.55], [w * 0.72, d * 0.72, h * 0.3], [w * 0.5, d * 0.5, h * 0.15]]
+	var y := CURB_H
+	var first_body: StaticBody3D = null
+	var top: StaticBody3D = null
+	for t in tiers:
+		var th: float = t[2]
+		top = _static_box(self, Vector3(t[0], th, t[1]), base + Vector3(0, y + th / 2.0, 0), mat)
+		if first_body == null:
+			first_body = top
+		y += th
+	var tw: float = tiers[-1][0]
+	var td: float = tiers[-1][1]
+	var th_top: float = tiers[-1][2]
 	# Dark roof cap so rooftops read correctly from above.
 	var roof_mat := _mat(Color(0.13, 0.13, 0.15))
-	_box(body, Vector3(w + 0.2, 0.4, d + 0.2), Vector3(0, h / 2.0 + 0.2, 0), roof_mat)
+	_box(top, Vector3(tw + 0.2, 0.4, td + 0.2), Vector3(0, th_top / 2.0 + 0.2, 0), roof_mat)
 	# Neon roofline trim on some towers.
-	if rng.randf() < 0.42:
+	if rng.randf() < 0.45:
 		var neon: Color = NEON_PALETTE[rng.randi_range(0, NEON_PALETTE.size() - 1)]
 		var trim := _mat(Color(0.05, 0.05, 0.07), neon, 3.6)
-		var y := h / 2.0 - 0.3
-		_box(body, Vector3(w + 0.3, 0.25, 0.25), Vector3(0, y, d / 2.0 + 0.1), trim)
-		_box(body, Vector3(w + 0.3, 0.25, 0.25), Vector3(0, y, -d / 2.0 - 0.1), trim)
-		_box(body, Vector3(0.25, 0.25, d + 0.3), Vector3(w / 2.0 + 0.1, y, 0), trim)
-		_box(body, Vector3(0.25, 0.25, d + 0.3), Vector3(-w / 2.0 - 0.1, y, 0), trim)
+		var ty := th_top / 2.0 - 0.3
+		_box(top, Vector3(tw + 0.3, 0.25, 0.25), Vector3(0, ty, td / 2.0 + 0.1), trim)
+		_box(top, Vector3(tw + 0.3, 0.25, 0.25), Vector3(0, ty, -td / 2.0 - 0.1), trim)
+		_box(top, Vector3(0.25, 0.25, td + 0.3), Vector3(tw / 2.0 + 0.1, ty, 0), trim)
+		_box(top, Vector3(0.25, 0.25, td + 0.3), Vector3(-tw / 2.0 - 0.1, ty, 0), trim)
+	# Antenna with a blinking aircraft beacon on the tallest towers.
+	if h >= 40.0 and rng.randf() < 0.6:
+		var pole := MeshInstance3D.new()
+		var pm := CylinderMesh.new()
+		pm.top_radius = 0.05
+		pm.bottom_radius = 0.09
+		pm.height = 5.0
+		pm.material = _mat(Color(0.2, 0.2, 0.22))
+		pole.mesh = pm
+		pole.position = base + Vector3(0, CURB_H + h + 2.5, 0)
+		add_child(pole)
+		var beacon := MeshInstance3D.new()
+		var bm := SphereMesh.new()
+		bm.radius = 0.25
+		bm.height = 0.5
+		bm.material = _mat(Color(0.2, 0.02, 0.02), Color(1.0, 0.1, 0.1), 5.0)
+		beacon.mesh = bm
+		beacon.position = base + Vector3(0, CURB_H + h + 5.1, 0)
+		add_child(beacon)
+		blinkers.append(beacon)
 	# Storefront sign facing the nearest road.
-	if sign_count < 52 and rng.randf() < 0.55:
-		_sign(body, w, d, h)
+	if sign_count < 60 and rng.randf() < 0.6:
+		var t1h: float = tiers[0][2]
+		_sign(first_body, w, d, t1h)
 
 func _sign(body: StaticBody3D, w: float, d: float, h: float) -> void:
 	sign_count += 1
@@ -227,9 +345,13 @@ func _sign(body: StaticBody3D, w: float, d: float, h: float) -> void:
 	label.modulate = Color(neon.r * 1.6, neon.g * 1.6, neon.b * 1.6)
 	label.position = Vector3(0, 0, 0.09)
 	holder.add_child(label)
+	# A few signs have a loose wire somewhere.
+	if rng.randf() < 0.22:
+		flickers.append({"node": holder, "t": rng.randf_range(1.0, 5.0)})
 
 func _park(i: int, j: int) -> void:
 	var c := _slab(i, j, Color(0.05, 0.12, 0.06))
+	park_centers.append(c)
 	var trunk_mat := _mat(Color(0.2, 0.14, 0.08))
 	var leaf_mat := _mat(Color(0.04, 0.16, 0.08))
 	for t in rng.randi_range(6, 10):
@@ -306,6 +428,24 @@ func _streetlights(c: Vector3) -> void:
 			lamp.distance_fade_enabled = true
 			lamp.distance_fade_begin = 120.0
 			add_child(lamp)
+			# Fake volumetric cone under the lamp head.
+			var cone := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.12
+			cm.bottom_radius = 2.3
+			cm.height = 4.6
+			var conem := StandardMaterial3D.new()
+			conem.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			conem.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			conem.albedo_color = Color(1.0, 0.85, 0.55, 0.06)
+			conem.emission_enabled = true
+			conem.emission = Color(1.0, 0.85, 0.55)
+			conem.emission_energy_multiplier = 0.3
+			conem.cull_mode = BaseMaterial3D.CULL_DISABLED
+			cm.material = conem
+			cone.mesh = cm
+			cone.position = p + Vector3(0, CURB_H + 2.8, 0)
+			add_child(cone)
 
 func _parked_cars() -> void:
 	var car_script := preload("res://scripts/Car.gd")
@@ -330,6 +470,117 @@ func _parked_cars() -> void:
 		car.position = s[0] + Vector3(0, 0.7, 0)
 		car.rotation.y = s[1]
 		add_child(car)
+
+# ------------------------------------------------------------ fun stuff
+
+func _ramps() -> void:
+	# Road ramps for stunt bonuses, plus two aimed straight at the harbor
+	# through the railing gaps. Those are a personality test.
+	var defs := [
+		[Vector3(line(2) + 2.6, 0, 60.0), 0.0],
+		[Vector3(line(8) - 2.6, 0, -60.0), PI],
+		[Vector3(60.0, 0, line(3) - 2.6), PI / 2.0],
+		[Vector3(-60.0, 0, line(7) + 2.6), -PI / 2.0],
+		[Vector3(line(5) + 2.6, 0, -130.0), 0.0],
+		[Vector3(-130.0, 0, line(5) - 2.6), PI / 2.0],
+		[Vector3(line(4), 0, 237.0), PI],
+		[Vector3(line(7), 0, 237.0), PI],
+	]
+	for r in defs:
+		_ramp(r[0], r[1])
+
+func _ramp(pos: Vector3, yaw: float) -> void:
+	var body := StaticBody3D.new()
+	body.position = pos
+	body.rotation.y = yaw
+	add_child(body)
+	var holder := Node3D.new()
+	holder.rotation.x = 0.20
+	holder.position = Vector3(0, 0.8, 0)
+	body.add_child(holder)
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(7.0, 0.5, 12.0)
+	cs.shape = shape
+	holder.add_child(cs)
+	var mat := _mat(Color(0.12, 0.12, 0.14))
+	mat.roughness = 0.4
+	_box(holder, Vector3(7.0, 0.5, 12.0), Vector3.ZERO, mat)
+	var stripe := _mat(Color(0.1, 0.05, 0.02), Color(1.0, 0.55, 0.1), 2.8)
+	_box(holder, Vector3(6.6, 0.06, 0.8), Vector3(0, 0.28, -2.0), stripe)
+	_box(holder, Vector3(6.6, 0.06, 0.8), Vector3(0, 0.28, -4.5), stripe)
+
+func _beach_balls() -> void:
+	var c := block_center(N / 2, N / 2)
+	var spots: Array = [c + Vector3(6, 2, -6), c + Vector3(-7, 2, 5)]
+	for pc in park_centers:
+		spots.append(pc + Vector3(rng.randf_range(-8, 8), 2, rng.randf_range(-8, 8)))
+	var colors := [Color(0.2, 0.9, 1.0), Color(1.0, 0.4, 0.7), Color(1.0, 0.85, 0.3), Color(0.5, 1.0, 0.4)]
+	for i in mini(spots.size(), 7):
+		var ball := RigidBody3D.new()
+		ball.mass = 4.0
+		var pm := PhysicsMaterial.new()
+		pm.bounce = 0.82
+		pm.friction = 0.6
+		ball.physics_material_override = pm
+		var cs := CollisionShape3D.new()
+		var sphere := SphereShape3D.new()
+		sphere.radius = 1.5
+		cs.shape = sphere
+		ball.add_child(cs)
+		var mi := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = 1.5
+		mesh.height = 3.0
+		var col: Color = colors[i % colors.size()]
+		mesh.material = _mat(col * 0.25, col, 1.6)
+		mi.mesh = mesh
+		ball.add_child(mi)
+		ball.position = spots[i]
+		add_child(ball)
+
+func _cats() -> void:
+	var c := block_center(N / 2, N / 2)
+	var park_spot: Vector3 = park_centers[0] + Vector3(6, CURB_H, 3) if park_centers.size() > 0 \
+		else c + Vector3(-12, CURB_H, 12)
+	var spots := [
+		c + Vector3(2.6, CURB_H + 0.5, -2.6),
+		warehouse_roof + Vector3(3.0, -0.7, 2.0),
+		Vector3(line(8) - 3.0, 0.4, line(N) - 2.5),
+		park_spot,
+		block_center(1, 1) + Vector3(15.5, CURB_H, 15.5),
+	]
+	for i in 5:
+		var cat := Cat.new()
+		cat.setup(i)
+		cat.position = spots[i]
+		add_child(cat)
+
+func _pigeons() -> void:
+	for i in 14:
+		spawn_pigeon_flock(block_center(rng.randi_range(0, N - 1), rng.randi_range(0, N - 1)))
+
+func spawn_pigeon_flock(near: Vector3) -> void:
+	var flock := PigeonFlock.new()
+	flock.position = near + Vector3(rng.randf_range(-15, 15), CURB_H, rng.randf_range(-15, 15))
+	add_child(flock)
+
+func _process(delta: float) -> void:
+	# Aircraft beacons blink in unison, neon signs flicker individually.
+	blink_t += delta
+	if blink_t > 0.7:
+		blink_t = 0.0
+		blink_on = not blink_on
+		for b in blinkers:
+			if is_instance_valid(b):
+				b.visible = blink_on
+	for f in flickers:
+		f["t"] -= delta
+		if f["t"] <= 0.0:
+			var node: Node3D = f["node"]
+			if is_instance_valid(node):
+				node.visible = not node.visible
+				f["t"] = rng.randf_range(0.04, 0.18) if node.visible == false else rng.randf_range(1.5, 6.0)
 
 # ------------------------------------------------------------ helpers
 

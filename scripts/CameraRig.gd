@@ -8,7 +8,9 @@ var pitch := -0.28
 var target: Node3D = null
 var drive_mode := false
 var manual_timer := 0.0
+var cine_t := 0.0
 var camera: Camera3D
+var rain: GPUParticles3D
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -19,6 +21,35 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 	top_level = true
+	_build_rain()
+
+func _build_rain() -> void:
+	# Rain follows the camera position but falls in world space.
+	rain = GPUParticles3D.new()
+	rain.add_to_group("rain")
+	rain.amount = 650
+	rain.lifetime = 0.9
+	rain.emitting = Game.fancy_graphics
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(26, 1, 26)
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 2.0
+	pm.initial_velocity_min = 24.0
+	pm.initial_velocity_max = 30.0
+	pm.gravity = Vector3(0, -12, 0)
+	rain.process_material = pm
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.015, 0.55, 0.015)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.6, 0.7, 0.9, 0.32)
+	mesh.material = m
+	rain.draw_pass_1 = mesh
+	rain.visibility_aabb = AABB(Vector3(-40, -25, -40), Vector3(80, 50, 80))
+	rain.top_level = true
+	add_child(rain)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -29,12 +60,24 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if target == null or not is_instance_valid(target):
 		return
+	if rain != null:
+		rain.global_position = global_position + Vector3(0, 14, 0)
 	manual_timer = maxf(manual_timer - delta, 0.0)
-	if drive_mode and manual_timer <= 0.0:
+	if cine_t > 0.0:
+		# Slow dramatic orbit for WASTED and BUSTED moments.
+		cine_t -= delta
+		yaw += delta * 1.4
+		pitch = lerpf(pitch, -0.45, 3.0 * delta)
+	elif drive_mode and manual_timer <= 0.0:
 		# Settle in behind the car's heading.
 		var car_yaw: float = target.global_transform.basis.get_euler().y
 		yaw = lerp_angle(yaw, car_yaw, 2.2 * delta)
 		pitch = lerpf(pitch, -0.22, 2.0 * delta)
+	if drive_mode and target is RigidBody3D:
+		var spd: float = target.linear_velocity.length()
+		camera.fov = lerpf(camera.fov, 72.0 + 16.0 * clampf(spd / 34.0, 0.0, 1.0), 4.0 * delta)
+	else:
+		camera.fov = lerpf(camera.fov, 72.0, 4.0 * delta)
 	var pivot: Vector3 = target.global_position + Vector3(0, 2.6 if drive_mode else 1.6, 0)
 	var dist := 8.2 if drive_mode else 4.3
 	var offset := Basis(Vector3.UP, yaw) * (Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, dist))

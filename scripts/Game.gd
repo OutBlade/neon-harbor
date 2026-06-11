@@ -19,6 +19,9 @@ var stars: int = 0
 var missions_done: Array = []
 var total_busts: int = 0
 var total_wrecks: int = 0
+var cats_petted: Array = []
+var fancy_graphics: bool = true
+var horn_style: int = 0
 
 var player: CharacterBody3D = null
 var player_car: VehicleBody3D = null
@@ -89,6 +92,24 @@ func mission_completed(id: String) -> void:
 		missions_done.append(id)
 	save_game()
 
+func pet_cat(index: int) -> void:
+	if cats_petted.has(index):
+		notify.emit("This cat has already been petted. It remembers")
+		return
+	cats_petted.append(index)
+	sound.play_ui("meow")
+	add_money(100)
+	notify.emit("Cat petted. %d of 5 found" % cats_petted.size())
+	if cats_petted.size() >= 5:
+		notify.emit("All cats petted. You are unstoppable now")
+		add_money(500)
+	save_game()
+
+func slowmo(scale: float, duration: float) -> void:
+	Engine.time_scale = scale
+	var t := get_tree().create_timer(duration, true, false, true)
+	t.timeout.connect(func() -> void: Engine.time_scale = 1.0)
+
 func reset_session() -> void:
 	heat = 0.0
 	stars = 0
@@ -107,6 +128,8 @@ func save_game() -> void:
 		"missions_done": missions_done,
 		"total_busts": total_busts,
 		"total_wrecks": total_wrecks,
+		"cats_petted": cats_petted,
+		"fancy_graphics": fancy_graphics,
 	}))
 
 func load_game() -> void:
@@ -122,12 +145,15 @@ func load_game() -> void:
 	missions_done = data.get("missions_done", [])
 	total_busts = int(data.get("total_busts", 0))
 	total_wrecks = int(data.get("total_wrecks", 0))
+	cats_petted = data.get("cats_petted", [])
+	fancy_graphics = bool(data.get("fancy_graphics", true))
 
 func wipe_save() -> void:
 	money = 0
 	missions_done = []
 	total_busts = 0
 	total_wrecks = 0
+	cats_petted = []
 	save_game()
 
 # ---------------------------------------------------------------- input map
@@ -148,6 +174,8 @@ func _register_inputs() -> void:
 	_key("horn", KEY_H);          _btn("horn", JOY_BUTTON_Y)
 	_key("pause", KEY_ESCAPE);    _btn("pause", JOY_BUTTON_START)
 	_key("toggle_minimap", KEY_M)
+	_key("radio", KEY_R);         _btn("radio", JOY_BUTTON_DPAD_RIGHT)
+	_key("horn_cycle", KEY_J)
 
 func _ensure(action: String) -> void:
 	if not InputMap.has_action(action):

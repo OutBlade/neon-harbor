@@ -9,6 +9,7 @@ const RED := Color(1.0, 0.25, 0.25)
 
 var money_label: Label
 var stars_label: Label
+var cats_label: Label
 var mission_title: Label
 var mission_obj: Label
 var mission_timer: Label
@@ -29,6 +30,8 @@ func _ready() -> void:
 	money_label.position = Vector2(20, 14)
 	stars_label = _label(root, 34, RED)
 	stars_label.position = Vector2(20, 52)
+	cats_label = _label(root, 16, GOLD)
+	cats_label.position = Vector2(20, 96)
 
 	var panel := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
@@ -53,7 +56,7 @@ func _ready() -> void:
 	panel.reset_size()
 
 	toast_box = VBoxContainer.new()
-	toast_box.position = Vector2(20, 110)
+	toast_box.position = Vector2(20, 126)
 	toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toast_box)
 
@@ -73,7 +76,7 @@ func _ready() -> void:
 	big_label.modulate.a = 0.0
 
 	var hint := _label(root, 13, Color(1, 1, 1, 0.45))
-	hint.text = "WASD move and drive    E enter or exit    Space jump or handbrake    Shift sprint    H horn    M map    Esc pause"
+	hint.text = "WASD move    E enter or exit    Space jump or handbrake    H horn  J horn style  R radio    M map    Esc pause"
 	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	hint.position = Vector2(-360, -34)
 
@@ -120,6 +123,7 @@ func _process(_delta: float) -> void:
 	if map_camera != null:
 		var p := Game.player_position()
 		map_camera.global_position = Vector3(p.x, 180.0, p.z)
+	cats_label.text = "CATS %d/5" % Game.cats_petted.size() if Game.cats_petted.size() > 0 else ""
 	if Game.player_car != null:
 		speed_label.text = "%d km/h" % int(Game.player_car.linear_velocity.length() * 3.6)
 		speed_label.visible = true

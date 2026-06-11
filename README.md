@@ -27,17 +27,31 @@ Take any car, run jobs for cash, push your luck to five stars. Every chase ends 
 
 ## Features
 
-- Procedurally generated neon city: 100 seeded blocks of towers with lit windows, neon rooftop trims, glowing signs, street lights, parks, a plaza and a harbor waterfront
+- Procedurally generated neon city: 100 seeded blocks of stepped towers with lit windows, blinking antenna beacons, neon rooftop trims, flickering signs, street lights, parks, a plaza and a harbor waterfront
+- Rain-slick streets with real screen space reflections, rain, light cones, a starry shader sky with a moon, and a FANCY or FAST graphics toggle
 - Third person on-foot movement with sprint and jump, walk up to any car and take it
-- Arcade vehicle physics with working headlights, horn, handbrake and rev-following engine audio
+- Arcade vehicle physics with headlight beams, brake lights, collision sparks, handbrake tire smoke and rev-following engine audio
 - AI traffic that follows the road grid, brakes for obstacles and honks when wedged
 - Pedestrians who stroll the sidewalks and scatter when things go wrong
 - Five star wanted system: hit and runs raise the heat, cruisers hunt you down and bust you if they corner you
 - Six story missions plus endless courier jobs once the campaign is done
 - Live minimap, cash, mission timers, pause menu, persistent save file
-- Procedural audio engine: the synthwave soundtrack and every sound effect are synthesized from pure math at startup
+- Procedural audio engine: three radio stations and every sound effect are synthesized from pure math at startup
 - Zero binary assets in the entire repository: every mesh, texture and sound is generated from code
 - Native builds for both x64 and Windows-on-ARM
+
+## The dumb fun
+
+1. Pedestrians ragdoll into a spinning arc when clipped, physics approved
+2. Hot dog carts, trash cans and mailboxes burst into bouncing debris, hot dogs included
+3. Giant glowing beach balls at the plaza and parks, punt them across the city
+4. Pigeon flocks that scatter and occasionally decorate your windshield
+5. Brainrot FM: three station car radio, from synthwave to POLKA 24/7 to ELEVATOR.WAV
+6. Horn pack: factory, clown and airhorn. Honking startles everyone nearby
+7. Police radio banter that escalates with your wanted level
+8. Stunt ramps everywhere, two of them aimed directly at the harbor. Airtime pays in slow motion
+9. Cinematic slow-mo orbit cam every time you get WASTED or BUSTED
+10. Five golden cats hidden across the city. Pet them all and become unstoppable
 
 ## Controls
 
@@ -47,8 +61,10 @@ Take any car, run jobs for cash, push your luck to five stars. Every chase ends 
 | Mouse | Camera |
 | Shift | Sprint |
 | Space | Jump on foot, handbrake in a car |
-| E | Enter or exit a car |
+| E | Enter or exit a car, pet cats |
 | H | Horn |
+| J | Change horn style |
+| R | Change radio station |
 | M | Toggle minimap |
 | Esc | Pause |
 
