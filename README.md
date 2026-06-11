@@ -1,99 +1,118 @@
-# Neon Harbor
+# NEON HARBOR
 
-An open world night city action game. Steal cars, outrun the police, run jobs
-for cash, and own the harbor. Built with Godot 4.6 and exactly zero binary
-assets: the whole city, every car, every texture and every sound is generated
-from code at runtime.
+**An open world night city. Steal it one car at a time.**
 
-![Driving through Neon Harbor](shots/shot4_driving.png)
+A hundred blocks of neon towers, a harbor at the edge, and a police force with no sense of humor.
+Take any car, run jobs for cash, push your luck to five stars. Every chase ends in chaos.
 
-## Download and play
+[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-Installer-ff2a6d?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/OutBlade/neon-harbor/releases/latest)
+[![Made with Godot](https://img.shields.io/badge/Made%20with-Godot%204.6-05d9e8?style=for-the-badge&logo=godotengine&logoColor=white)](https://godotengine.org)
+[![Release](https://img.shields.io/github/v/release/OutBlade/neon-harbor?style=for-the-badge&color=b967ff)](https://github.com/OutBlade/neon-harbor/releases/latest)
 
-Grab the latest build from the
-[Releases page](../../releases/latest):
+---
 
-- **NeonHarborSetup.exe**: Windows installer, picks the right binary for your
-  machine automatically (x64 and ARM64 are both included)
-- **NeonHarbor-win-x64.exe**: portable, normal Intel or AMD PCs
-- **NeonHarbor-win-arm64.exe**: portable, native for Snapdragon and other
-  Windows-on-ARM devices
+<p align="center">
+  <img src="docs/screenshots/menu.png" alt="Neon Harbor: main menu over a live city flyover" width="100%">
+</p>
 
-No install dependencies. Single file, double click, play.
+<p align="center">
+  <img src="docs/screenshots/driving.png" alt="Neon Harbor: driving at night with headlights, traffic and mission beacons" width="100%">
+</p>
 
-## What is in the game
+<p align="center">
+  <img src="docs/screenshots/police.png" alt="Neon Harbor: two wanted stars and police pressure" width="100%">
+</p>
 
-- A procedurally generated neon city: 100 blocks of towers with lit windows,
-  neon rooftop trims, glowing storefront signs, street lights, parks, a plaza
-  and a harbor waterfront
-- Third person on-foot movement with sprint and jump
-- Drivable cars with arcade vehicle physics, working headlights, horn and
-  engine audio that follows the revs. Walk up to any parked or moving car and
-  take it
-- AI traffic that obeys the road grid, brakes for obstacles and honks when
-  you wedge it in
+---
+
+## Features
+
+- Procedurally generated neon city: 100 seeded blocks of towers with lit windows, neon rooftop trims, glowing signs, street lights, parks, a plaza and a harbor waterfront
+- Third person on-foot movement with sprint and jump, walk up to any car and take it
+- Arcade vehicle physics with working headlights, horn, handbrake and rev-following engine audio
+- AI traffic that follows the road grid, brakes for obstacles and honks when wedged
 - Pedestrians who stroll the sidewalks and scatter when things go wrong
-- A five star wanted system: hit and runs and rammed cruisers raise the heat,
-  police cars hunt you down and bust you if they corner you
-- Six story missions: deliveries, a checkpoint race, a taxi fare, a car
-  theft, a rooftop climb and a top speed challenge, then endless courier jobs
-- Live minimap, cash, wanted stars, mission timers, pause menu, persistent
-  save file
-- A procedurally synthesized synthwave soundtrack and sound effects, all
-  generated at startup from pure math
-
-![Main menu flyover](shots/shot1_menu.png)
-![On foot at the plaza](shots/shot3_onfoot.png)
-![Wanted by the police](shots/shot5_police.png)
+- Five star wanted system: hit and runs raise the heat, cruisers hunt you down and bust you if they corner you
+- Six story missions plus endless courier jobs once the campaign is done
+- Live minimap, cash, mission timers, pause menu, persistent save file
+- Procedural audio engine: the synthwave soundtrack and every sound effect are synthesized from pure math at startup
+- Zero binary assets in the entire repository: every mesh, texture and sound is generated from code
+- Native builds for both x64 and Windows-on-ARM
 
 ## Controls
 
-| Action | Key |
-| --- | --- |
-| Move and drive | WASD or arrow keys, left stick on a gamepad |
-| Camera | Mouse |
-| Sprint | Shift |
-| Jump | Space (on foot) |
-| Handbrake | Space (driving) |
-| Enter or exit a car | E |
-| Horn | H |
-| Toggle minimap | M |
-| Pause | Esc |
+| Input | Action |
+|-------|--------|
+| WASD / arrows / left stick | Move and drive |
+| Mouse | Camera |
+| Shift | Sprint |
+| Space | Jump on foot, handbrake in a car |
+| E | Enter or exit a car |
+| H | Horn |
+| M | Toggle minimap |
+| Esc | Pause |
 
-## Build from source
+Longer jobs pay better. Stay out of the harbor.
 
-1. Install [Godot 4.6.x](https://godotengine.org/download) (standard build,
-   no Mono needed)
-2. Clone this repository and open `project.godot` in the editor, or run
-   `godot --path .` from the repository root
-3. To export, install the matching export templates
-   (Editor, Manage Export Templates) and run:
+## Missions
 
+**Campaign:** Package Run, Neon Sprint, Night Cab, Hot Wheels, Rooftop Cache, Night Rider
+
+**After the campaign:** endless Courier Runs with escalating pay
+
+Find the yellow beacon to start a job, follow the cyan beacons to finish it.
+
+## Run from source
+
+```bash
+# Godot 4.6.x standard build, no Mono needed
+godot --path .          # run the game
+godot -e --path .       # open in the editor
 ```
+
+Every mesh, texture and sound is generated procedurally at boot, so there are no assets to import and no downloads beyond the engine itself.
+
+## Build installer
+
+```bash
 godot --headless --export-release "Windows x64" dist/NeonHarbor-win-x64.exe
 godot --headless --export-release "Windows ARM64" dist/NeonHarbor-win-arm64.exe
+ISCC.exe installer/neon_harbor.iss     # Inno Setup 6
 ```
 
-The installer is built from `installer/neon_harbor.iss` with
-[Inno Setup 6](https://jrsoftware.org/isinfo.php).
+Output lands in `dist/`. The installer bundles both architectures and installs the native binary for the machine it runs on.
 
-There are no imported assets to download: every mesh, texture and sound is
-created procedurally when the game boots.
+## Project structure
 
-## Tech notes
+```
+neon-harbor/
+  project.godot            Engine config, autoload, rendering settings
+  export_presets.cfg       Windows x64 and ARM64 export presets
+  scenes/
+    Main.tscn              Single entry scene, everything else is code
+  scripts/
+    Main.gd                Menus, session flow, world upkeep, autoshot mode
+    Game.gd                Autoload: state, heat, input map, save data
+    CityGen.gd             Procedural city: blocks, towers, signs, harbor
+    Player.gd              On-foot character
+    CameraRig.gd           Orbit camera with wall avoidance
+    Car.gd                 Vehicle physics, enter and exit, lights, audio
+    TrafficCar.gd          Grid-following civilian AI
+    PoliceCar.gd           Pursuit AI, busts, light bar and siren
+    Pedestrian.gd          Sidewalk AI, flee and ragdoll
+    MissionManager.gd      Campaign and courier jobs, beacons
+    HUD.gd                 Cash, stars, mission panel, minimap, toasts
+    SoundBank.gd           Procedural PCM synthesis for all audio
+  installer/
+    neon_harbor.iss        Inno Setup script (x64 + ARM64 in one setup)
+  docs/
+    screenshots/           Captured by the built-in autoshot mode
+```
 
-- Engine: Godot 4.6.3, Forward Plus renderer, GDScript only
-- The city is seeded, so every player walks the same streets
-- Vehicle physics: `VehicleBody3D` with tuned wheel friction and a custom
-  center of mass for arcade handling
-- Audio: PCM synthesized into `AudioStreamWAV` buffers at startup, including
-  an eight bar synthwave loop with pad chords, sub bass, kick and hats
-- The game was developed and tested natively on a Windows-on-ARM laptop
-
-## Disclaimer
-
-Neon Harbor is an original work. It is not affiliated with, endorsed by, or
-related to Rockstar Games or the Grand Theft Auto series in any way.
+Run the game with `-- --autoshot` and it plays itself and saves fresh screenshots to `shots/`.
 
 ## License
 
-[MIT](LICENSE)
+MIT
+
+Neon Harbor is an original work, not affiliated with Rockstar Games or the Grand Theft Auto series.

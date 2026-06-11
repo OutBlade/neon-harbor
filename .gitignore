@@ -1,6 +1,9 @@
 # Godot internals
 .godot/
 
+# Autoshot output (curated copies live in docs/screenshots)
+shots/
+
 # Build output (released via GitHub Releases, not the repo)
 dist/
 
