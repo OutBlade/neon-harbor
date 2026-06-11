@@ -147,15 +147,19 @@ void sky() {
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.18
 	env.adjustment_contrast = 1.04
+	env.tonemap_exposure = 1.18
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	apply_quality(Game.fancy_graphics)
 
 func apply_quality(fancy: bool) -> void:
-	# FANCY adds screen space reflections for the wet street look.
+	# FANCY adds screen space reflections for the wet street look
+	# and ambient occlusion so geometry edges ground themselves.
 	environment.ssr_enabled = fancy
 	environment.ssr_max_steps = 32
+	environment.ssao_enabled = fancy
+	environment.ssao_intensity = 1.6
 	environment.glow_intensity = 0.7 if fancy else 0.55
 	var moon := DirectionalLight3D.new()
 	moon.light_color = Color(0.6, 0.7, 1.0)
@@ -165,11 +169,22 @@ func apply_quality(fancy: bool) -> void:
 	moon.rotation_degrees = Vector3(-55, 35, 0)
 	add_child(moon)
 
+func _noise_tex(frequency: float) -> ImageTexture:
+	var noise := FastNoiseLite.new()
+	noise.seed = CITY_SEED
+	noise.frequency = frequency
+	noise.fractal_octaves = 4
+	return ImageTexture.create_from_image(noise.get_image(128, 128))
+
 func _ground_and_water() -> void:
-	# Rain-slick asphalt: low roughness so SSR mirrors the neon at night.
-	var road_mat := _mat(Color(0.045, 0.045, 0.055))
+	# Rain-slick asphalt: low roughness so SSR mirrors the neon at night,
+	# noise grain so it reads as a surface instead of a void.
+	var road_mat := _mat(Color(0.095, 0.095, 0.115))
 	road_mat.roughness = 0.22
 	road_mat.metallic = 0.45
+	road_mat.albedo_texture = _noise_tex(0.06)
+	road_mat.uv1_triplanar = true
+	road_mat.uv1_scale = Vector3(0.35, 0.35, 0.35)
 	var half := N * PITCH / 2.0
 	# Asphalt base covers the city footprint, stops where the harbor begins.
 	var ground_depth := half * 2.0 + 80.0
@@ -315,6 +330,12 @@ func _slab(i: int, j: int, color: Color) -> Vector3:
 	var c := block_center(i, j)
 	var mat := _mat(color)
 	mat.roughness = 0.85
+	if mat.albedo_texture == null:
+		# Concrete grain. Doubling albedo compensates the texture multiply.
+		mat.albedo_texture = _noise_tex(0.12)
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(0.8, 0.8, 0.8)
+		mat.albedo_color = Color(minf(color.r * 2.0, 1.0), minf(color.g * 2.0, 1.0), minf(color.b * 2.0, 1.0))
 	_static_box(self, Vector3(SLAB, CURB_H * 2.0, SLAB), Vector3(c.x, 0.0, c.z), mat)
 	_streetlights(c)
 	return c
@@ -520,7 +541,8 @@ func _parked_cars() -> void:
 	# Guaranteed starter car right next to the spawn plaza.
 	var center := N / 2
 	var c := block_center(center, center)
-	var spots: Array = [[c + Vector3(8.0, 0.0, SLAB / 2.0 + 3.2), 0.0, "sedan"]]
+	# Parked parallel to the curb, nose pointing with the nearest lane.
+	var spots: Array = [[c + Vector3(8.0, 0.0, SLAB / 2.0 + 3.2), -PI / 2.0, "sedan"]]
 	for n in 26:
 		var bi := rng.randi_range(0, N - 1)
 		var bj := rng.randi_range(0, N - 1)
@@ -528,10 +550,10 @@ func _parked_cars() -> void:
 		var side := rng.randi_range(0, 3)
 		var kind := "sports" if rng.randf() < 0.18 else "sedan"
 		match side:
-			0: spots.append([bc + Vector3(rng.randf_range(-12, 12), 0, SLAB / 2.0 + 3.2), 0.0, kind])
-			1: spots.append([bc + Vector3(rng.randf_range(-12, 12), 0, -SLAB / 2.0 - 3.2), PI, kind])
-			2: spots.append([bc + Vector3(SLAB / 2.0 + 3.2, 0, rng.randf_range(-12, 12)), PI / 2.0, kind])
-			3: spots.append([bc + Vector3(-SLAB / 2.0 - 3.2, 0, rng.randf_range(-12, 12)), -PI / 2.0, kind])
+			0: spots.append([bc + Vector3(rng.randf_range(-12, 12), 0, SLAB / 2.0 + 3.2), -PI / 2.0, kind])
+			1: spots.append([bc + Vector3(rng.randf_range(-12, 12), 0, -SLAB / 2.0 - 3.2), PI / 2.0, kind])
+			2: spots.append([bc + Vector3(SLAB / 2.0 + 3.2, 0, rng.randf_range(-12, 12)), 0.0, kind])
+			3: spots.append([bc + Vector3(-SLAB / 2.0 - 3.2, 0, rng.randf_range(-12, 12)), PI, kind])
 	for s in spots:
 		var car: VehicleBody3D = car_script.new()
 		car.setup(s[2], CAR_COLORS[rng.randi_range(0, CAR_COLORS.size() - 1)])
@@ -780,14 +802,15 @@ func _make_building_mats() -> void:
 		img.fill(Color(0.01, 0.01, 0.02))
 		var warm := rng.randf() < 0.5
 		if v % 3 == 2:
-			# Office towers: full horizontal light bands on some floors.
+			# Office towers: thin lit strips on some floors, kept dim so
+			# they read as windows rather than painted stripes.
 			for cy in range(0, 32, 4):
-				if rng.randf() < 0.35:
-					var bb := rng.randf_range(0.35, 0.7)
-					var bc := Color(bb, bb * 0.9, bb * 0.7) if warm else Color(bb * 0.65, bb * 0.85, bb)
+				if rng.randf() < 0.3:
+					var bb := rng.randf_range(0.18, 0.34)
+					var bc := Color(bb, bb * 0.9, bb * 0.72) if warm else Color(bb * 0.65, bb * 0.85, bb)
 					for px in 32:
-						for py in 2:
-							img.set_pixel(px, cy + 1 + py, bc)
+						if px % 5 != 0:
+							img.set_pixel(px, cy + 2, bc)
 		else:
 			for cy in range(0, 32, 4):
 				for cx in range(0, 32, 4):

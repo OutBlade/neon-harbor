@@ -84,7 +84,7 @@ func _build_smoke() -> void:
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	quad.material = m
 	smoke.draw_pass_1 = quad
-	smoke.position = Vector3(0, 0.3, 1.6)
+	smoke.position = Vector3(0, 0.3, -1.6)
 	add_child(smoke)
 	# Nitro exhaust flame.
 	flame = GPUParticles3D.new()
@@ -92,7 +92,7 @@ func _build_smoke() -> void:
 	flame.lifetime = 0.25
 	flame.emitting = false
 	var fpm := ParticleProcessMaterial.new()
-	fpm.direction = Vector3(0, 0.2, 1)
+	fpm.direction = Vector3(0, 0.2, -1)
 	fpm.spread = 8.0
 	fpm.initial_velocity_min = 9.0
 	fpm.initial_velocity_max = 14.0
@@ -112,7 +112,7 @@ func _build_smoke() -> void:
 	fm.emission_energy_multiplier = 4.0
 	fq.material = fm
 	flame.draw_pass_1 = fq
-	flame.position = Vector3(0, 0.45, 2.2)
+	flame.position = Vector3(0, 0.45, -2.2)
 	add_child(flame)
 
 func _build_body() -> void:
@@ -136,29 +136,30 @@ func _build_body() -> void:
 		# Armored van: tall slab body, white stripe, no subtlety.
 		_box(Vector3(2.3, 1.5, 5.0), Vector3(0, 1.1, 0), paint)
 		_box(Vector3(2.32, 0.25, 5.0), Vector3(0, 1.25, 0), _light_mat(Color(0.9, 0.9, 1.0), 0.6))
+		_box(Vector3(1.6, 0.4, 0.2), Vector3(0, 1.0, 2.55), _light_mat(Color(0.14, 0.9, 1.0), 2.0))
 		low_h = 1.5
 	else:
 		_box(Vector3(1.95, low_h, 4.3), Vector3(0, 0.35 + low_h / 2.0, 0), paint)
-	_box(Vector3(1.7, 0.45, 2.0), Vector3(0, 0.35 + low_h + 0.22, 0.15), glass)
-	# Angled windshield and rear glass for an actual car silhouette.
-	var front_glass := _box(Vector3(1.62, 0.05, 1.0), Vector3(0, 0.35 + low_h + 0.24, -0.78), glass)
-	front_glass.rotation.x = -0.48
-	var rear_glass := _box(Vector3(1.62, 0.05, 0.85), Vector3(0, 0.35 + low_h + 0.26, 1.1), glass)
-	rear_glass.rotation.x = 0.55
+	_box(Vector3(1.7, 0.45, 2.0), Vector3(0, 0.35 + low_h + 0.22, -0.15), glass)
+	# Angled windshield and rear glass. The nose is local +Z.
+	var front_glass := _box(Vector3(1.62, 0.05, 1.0), Vector3(0, 0.35 + low_h + 0.24, 0.78), glass)
+	front_glass.rotation.x = 0.48
+	var rear_glass := _box(Vector3(1.62, 0.05, 0.85), Vector3(0, 0.35 + low_h + 0.26, -1.1), glass)
+	rear_glass.rotation.x = -0.55
 	# Headlights and tail lights.
 	var head := _light_mat(Color(1.0, 0.95, 0.8), 4.0)
 	tail_mat = _light_mat(Color(1.0, 0.1, 0.1), 3.0)
-	headlights.append(_box(Vector3(0.45, 0.15, 0.08), Vector3(-0.6, 0.62, -2.16), head))
-	headlights.append(_box(Vector3(0.45, 0.15, 0.08), Vector3(0.6, 0.62, -2.16), head))
-	_box(Vector3(0.45, 0.12, 0.08), Vector3(-0.6, 0.62, 2.16), tail_mat)
-	_box(Vector3(0.45, 0.12, 0.08), Vector3(0.6, 0.62, 2.16), tail_mat)
+	headlights.append(_box(Vector3(0.45, 0.15, 0.08), Vector3(-0.6, 0.62, 2.16), head))
+	headlights.append(_box(Vector3(0.45, 0.15, 0.08), Vector3(0.6, 0.62, 2.16), head))
+	_box(Vector3(0.45, 0.12, 0.08), Vector3(-0.6, 0.62, -2.16), tail_mat)
+	_box(Vector3(0.45, 0.12, 0.08), Vector3(0.6, 0.62, -2.16), tail_mat)
 	if kind == "sports":
 		# Neon underglow, because of course.
 		var glow_col: Color = CityGen.NEON_PALETTE[randi() % CityGen.NEON_PALETTE.size()]
 		_box(Vector3(1.6, 0.05, 3.4), Vector3(0, 0.22, 0), _light_mat(glow_col, 3.5))
 	# Real headlight beam, enabled only while the player drives this car.
 	head_beam = SpotLight3D.new()
-	head_beam.position = Vector3(0, 1.1, -1.8)
+	head_beam.position = Vector3(0, 1.1, 1.8)
 	head_beam.rotation_degrees = Vector3(-14, 180, 0)
 	head_beam.spot_range = 38.0
 	head_beam.spot_angle = 42.0
@@ -194,8 +195,8 @@ func _build_wheels() -> void:
 	var tire := StandardMaterial3D.new()
 	tire.albedo_color = Color(0.05, 0.05, 0.05)
 	for w in [
-		[Vector3(-0.85, 0.4, -1.4), true], [Vector3(0.85, 0.4, -1.4), true],
-		[Vector3(-0.85, 0.4, 1.4), false], [Vector3(0.85, 0.4, 1.4), false],
+		[Vector3(-0.85, 0.4, 1.4), true], [Vector3(0.85, 0.4, 1.4), true],
+		[Vector3(-0.85, 0.4, -1.4), false], [Vector3(0.85, 0.4, -1.4), false],
 	]:
 		var wheel := VehicleWheel3D.new()
 		wheel.position = w[0]
@@ -232,7 +233,8 @@ func _build_wheels() -> void:
 		mi.add_child(hub)
 
 func forward_speed() -> float:
-	return linear_velocity.dot(-global_transform.basis.z)
+	# Physics truth: positive engine force drives along local +Z.
+	return linear_velocity.dot(global_transform.basis.z)
 
 func _physics_process(delta: float) -> void:
 	enter_cooldown = maxf(enter_cooldown - delta, 0.0)
@@ -335,7 +337,7 @@ func _ai_control(_delta: float) -> void:
 
 func steer_towards(target_pos: Vector3, speed_target: float, delta: float) -> void:
 	var local := to_local(target_pos)
-	var desired := clampf(atan2(-local.x, -local.z), -0.55, 0.55)
+	var desired := clampf(atan2(local.x, local.z), -0.55, 0.55)
 	steering = lerpf(steering, desired, 6.0 * delta)
 	var speed := forward_speed()
 	engine_force = 0.0
@@ -348,9 +350,9 @@ func steer_towards(target_pos: Vector3, speed_target: float, delta: float) -> vo
 		brake = 10.0
 
 func _obstacle_ahead() -> bool:
-	var from := global_position + Vector3(0, 0.7, 0) - global_transform.basis.z * 2.4
+	var from := global_position + Vector3(0, 0.7, 0) + global_transform.basis.z * 2.4
 	var ahead := 5.0 + forward_speed() * 0.7
-	var to := from - global_transform.basis.z * ahead
+	var to := from + global_transform.basis.z * ahead
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
@@ -417,7 +419,7 @@ func _spawn_sparks() -> void:
 	m.emission_energy_multiplier = 4.0
 	mesh.material = m
 	sparks.draw_pass_1 = mesh
-	sparks.position = Vector3(0, 0.6, -1.8 if forward_speed() > 0.0 else 1.8)
+	sparks.position = Vector3(0, 0.6, 1.8 if forward_speed() > 0.0 else -1.8)
 	add_child(sparks)
 	sparks.emitting = true
 	var t := get_tree().create_timer(1.2)

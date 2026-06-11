@@ -70,6 +70,30 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if "--autoshot" in OS.get_cmdline_user_args():
 		_autoshot()
+	if "--cartest" in OS.get_cmdline_user_args():
+		_cartest()
+
+func _cartest() -> void:
+	# Physics probe: confirms which local axis a throttling car moves along.
+	start_game()
+	await get_tree().create_timer(1.0).timeout
+	var car: VehicleBody3D = null
+	for c in get_tree().get_nodes_in_group("cars"):
+		if not c is PoliceCar and not c is TrafficCar:
+			car = c
+			break
+	# Bypass all control logic: raw positive engine force, nothing else.
+	car.set_physics_process(false)
+	car.engine_force = 3000.0
+	car.brake = 0.0
+	await get_tree().create_timer(2.5).timeout
+	var fwd: float = car.forward_speed()
+	var along_minus_z: float = car.linear_velocity.dot(-car.global_transform.basis.z)
+	var along_plus_z: float = car.linear_velocity.dot(car.global_transform.basis.z)
+	print("CARTEST forward_speed=%.2f  along-Z=%.2f  along+Z=%.2f  speed=%.2f" % [
+		fwd, along_minus_z, along_plus_z, car.linear_velocity.length()])
+	print("CARTEST verdict: car drives toward local %s" % ("+Z (headlight side, correct)" if along_plus_z > 1.0 else "-Z (VISUALS BACKWARDS)"))
+	get_tree().quit()
 
 func _on_update_available(version: String) -> void:
 	update_button.text = "UPDATE TO v" + version

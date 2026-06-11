@@ -102,9 +102,9 @@ func _physics_process(delta: float) -> void:
 		yaw += delta * 1.4
 		pitch = lerpf(pitch, -0.45, 3.0 * delta)
 	elif drive_mode and manual_timer <= 0.0:
-		# Settle in behind the car's heading.
+		# Settle in behind the car's heading (nose is local +Z).
 		var car_yaw: float = target.global_transform.basis.get_euler().y
-		yaw = lerp_angle(yaw, car_yaw, 2.2 * delta)
+		yaw = lerp_angle(yaw, car_yaw + PI, 2.2 * delta)
 		pitch = lerpf(pitch, -0.22, 2.0 * delta)
 	if drive_mode and target is RigidBody3D:
 		var spd: float = target.linear_velocity.length()

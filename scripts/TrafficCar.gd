@@ -23,7 +23,7 @@ func place_on_grid(k: int, l: int, d: Vector2i) -> void:
 	var fwd := Vector3(d.x, 0, d.y)
 	var right := Vector3(-d.y, 0, d.x)
 	position = CityGen.node_pos(k, l) + right * 2.6 + fwd * 6.0 + Vector3(0, 0.7, 0)
-	rotation.y = atan2(-fwd.x, -fwd.z)
+	rotation.y = atan2(fwd.x, fwd.z)
 	_advance()
 
 func _advance() -> void:
