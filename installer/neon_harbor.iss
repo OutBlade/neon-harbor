@@ -9,6 +9,8 @@ AppPublisher=OutBlade
 ; Per-user install so the built-in auto updater can replace the binary
 ; without elevation.
 PrivilegesRequired=lowest
+; Enable once a code signing certificate is configured (see docs/SIGNING.md):
+; SignTool=signtool sign /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 $f
 DefaultDirName={autopf}\Neon Harbor
 DisableProgramGroupPage=yes
 OutputDir=..\dist

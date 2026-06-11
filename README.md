@@ -94,20 +94,28 @@ Find the yellow beacon to start a job, follow the cyan beacons to finish it.
 
 ## Installing on Windows
 
-Windows SmartScreen will warn about the installer because it is a new
-unsigned binary with no download reputation yet. That is expected for an
-indie release without a paid code signing certificate. To proceed:
+The cleanest path once the [winget submission](https://github.com/microsoft/winget-pkgs/pull/386774) is merged:
 
-1. Click **More info** on the SmartScreen dialog
-2. Click **Run anyway**
+```powershell
+winget install OutBlade.NeonHarbor
+```
 
-Or unblock the file once in PowerShell before starting it:
+winget downloads without browser marking, so SmartScreen never appears.
+
+Downloading the installer manually instead? Windows SmartScreen will warn
+because it is a new unsigned binary with no reputation yet. Click
+**More info**, then **Run anyway**, or unblock it once in PowerShell:
 
 ```powershell
 Unblock-File "$env:USERPROFILE\Downloads\NeonHarborSetup.exe"
 ```
 
-This only happens for the first install. The built-in auto updater
+On devices with **Smart App Control** (many new Windows 11 ARM laptops)
+the unsigned installer is blocked without an override. Use the portable
+build instead, which runs fine, or see [docs/SIGNING.md](docs/SIGNING.md)
+for the code signing plan that removes the block entirely.
+
+Either way this only affects the first install. The built-in auto updater
 downloads future versions directly and never triggers SmartScreen again.
 
 ## Run from source
