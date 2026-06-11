@@ -1,0 +1,8 @@
+# Godot internals
+.godot/
+
+# Build output (released via GitHub Releases, not the repo)
+dist/
+
+# Local tooling
+*.tpz

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#070714"/>
+  <rect x="14" y="58" width="18" height="56" fill="#11112b" stroke="#ff2d95" stroke-width="2"/>
+  <rect x="38" y="38" width="22" height="76" fill="#11112b" stroke="#23e6ff" stroke-width="2"/>
+  <rect x="66" y="50" width="16" height="64" fill="#11112b" stroke="#b44bff" stroke-width="2"/>
+  <rect x="88" y="28" width="24" height="86" fill="#11112b" stroke="#ffb321" stroke-width="2"/>
+  <rect x="42" y="46" width="4" height="4" fill="#23e6ff"/>
+  <rect x="52" y="46" width="4" height="4" fill="#23e6ff"/>
+  <rect x="42" y="58" width="4" height="4" fill="#23e6ff"/>
+  <rect x="52" y="70" width="4" height="4" fill="#23e6ff"/>
+  <rect x="92" y="36" width="5" height="5" fill="#ffb321"/>
+  <rect x="102" y="48" width="5" height="5" fill="#ffb321"/>
+  <rect x="92" y="60" width="5" height="5" fill="#ffb321"/>
+  <rect x="18" y="66" width="4" height="4" fill="#ff2d95"/>
+  <rect x="18" y="78" width="4" height="4" fill="#ff2d95"/>
+  <rect x="70" y="58" width="4" height="4" fill="#b44bff"/>
+  <rect x="70" y="82" width="4" height="4" fill="#b44bff"/>
+  <path d="M 8 118 H 120" stroke="#23e6ff" stroke-width="3"/>
+  <circle cx="24" cy="20" r="7" fill="none" stroke="#ffb321" stroke-width="2"/>
+</svg>
