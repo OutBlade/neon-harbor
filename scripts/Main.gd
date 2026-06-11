@@ -46,6 +46,7 @@ func _ready() -> void:
 	menu_camera.far = 900.0
 	add_child(menu_camera)
 	menu_camera.current = true
+	_build_vignette()
 	_build_menu()
 	_build_pause_ui()
 	settings_menu = SettingsMenu.new()
@@ -220,7 +221,8 @@ func _spawn_traffic_car() -> void:
 		var pos := CityGen.node_pos(node.x, node.y)
 		if pos.distance_to(p) > 55.0:
 			var car := TrafficCar.new()
-			car.setup("sedan", CityGen.CAR_COLORS[Game.rng.randi_range(0, CityGen.CAR_COLORS.size() - 1)])
+			var kind := "taxi" if Game.rng.randf() < 0.22 else "sedan"
+			car.setup(kind, CityGen.CAR_COLORS[Game.rng.randi_range(0, CityGen.CAR_COLORS.size() - 1)])
 			add_child(car)
 			car.place_on_grid(node.x, node.y, dirs[Game.rng.randi_range(0, 3)])
 			return
@@ -262,16 +264,34 @@ func _spawn_ped() -> void:
 
 # ------------------------------------------------------------ menus
 
+func _build_vignette() -> void:
+	# Subtle cinematic edge darkening under all UI.
+	var layer := CanvasLayer.new()
+	layer.layer = 0
+	add_child(layer)
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = "shader_type canvas_item;\nvoid fragment() {\n\tfloat d = length(UV - vec2(0.5));\n\tCOLOR = vec4(0.0, 0.0, 0.02, smoothstep(0.42, 0.95, d) * 0.5);\n}\n"
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	rect.material = m
+	layer.add_child(rect)
+
 func _build_menu() -> void:
 	menu_ui = CanvasLayer.new()
 	add_child(menu_ui)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.theme = UITheme.build()
 	menu_ui.add_child(root)
 	var panel := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.01, 0.01, 0.05, 0.72)
 	sb.set_corner_radius_all(12)
+	sb.border_color = Color(1.0, 0.2, 0.6, 0.85)
+	sb.border_width_left = 3
 	sb.content_margin_left = 40.0
 	sb.content_margin_right = 40.0
 	sb.content_margin_top = 30.0
@@ -287,7 +307,12 @@ func _build_menu() -> void:
 	title.text = "NEON HARBOR"
 	title.add_theme_font_size_override("font_size", 58)
 	title.add_theme_color_override("font_color", Color(1.0, 0.2, 0.6))
+	title.add_theme_color_override("font_outline_color", Color(0.45, 0.05, 0.25, 0.8))
+	title.add_theme_constant_override("outline_size", 8)
 	vb.add_child(title)
+	var pulse := title.create_tween().set_loops()
+	pulse.tween_property(title, "modulate:a", 0.72, 1.3).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(title, "modulate:a", 1.0, 1.3).set_trans(Tween.TRANS_SINE)
 	var sub := Label.new()
 	sub.text = "an open world night city sandbox"
 	sub.add_theme_font_size_override("font_size", 18)
@@ -397,6 +422,7 @@ func _build_pause_ui() -> void:
 	add_child(pause_ui)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.theme = UITheme.build()
 	pause_ui.add_child(root)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)

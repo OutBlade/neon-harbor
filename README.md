@@ -27,7 +27,8 @@ Take any car, run jobs for cash, push your luck to five stars. Every chase ends 
 
 ## Features
 
-- Procedurally generated neon city: 100 seeded blocks of stepped towers with lit windows, blinking antenna beacons, neon rooftop trims, flickering signs, street lights, parks, a plaza and a harbor waterfront
+- Procedurally generated neon city: 100 seeded blocks of stepped towers with lit windows, blinking antenna beacons, neon rooftop trims, flickering signs, street lights, crosswalks, curbs, parks, a plaza with a rotating holo sign, a harbor waterfront and a distant skyline ring across the water
+- A consistent neon design system across every menu, panel and slider, with a cinematic vignette and yellow cabs in traffic
 - Rain-slick streets with real screen space reflections, rain, light cones, a starry shader sky with a moon, and a FANCY or FAST graphics toggle
 - Third person on-foot movement with sprint and jump, walk up to any car and take it
 - Arcade vehicle physics with headlight beams, brake lights, collision sparks, handbrake tire smoke and rev-following engine audio

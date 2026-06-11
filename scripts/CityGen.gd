@@ -41,6 +41,7 @@ var blinkers: Array = []
 var blink_on := true
 var blink_t := 0.0
 var flickers: Array = []
+var holo: Node3D = null
 
 static func line(k: int) -> float:
 	return -N * PITCH / 2.0 + k * PITCH
@@ -62,6 +63,9 @@ func build() -> void:
 	_environment()
 	_ground_and_water()
 	_lane_dashes()
+	_crosswalks()
+	_curbs()
+	_skyline()
 	_perimeter_walls()
 	var center := N / 2
 	for i in N:
@@ -224,6 +228,74 @@ func _lane_dashes() -> void:
 	inst.multimesh = mm
 	add_child(inst)
 
+func _crosswalks() -> void:
+	# Zebra crossings on all four arms of every intersection.
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var bar := BoxMesh.new()
+	bar.size = Vector3(1.7, 0.025, 0.55)
+	bar.material = _mat(Color(0.5, 0.5, 0.46), Color(0.45, 0.45, 0.4), 0.45)
+	mm.mesh = bar
+	var rot90 := Basis.from_euler(Vector3(0, PI / 2.0, 0))
+	var xf: Array[Transform3D] = []
+	for k in N + 1:
+		for l in N + 1:
+			var c := node_pos(k, l)
+			for i in range(-4, 5):
+				xf.append(Transform3D(Basis.IDENTITY, c + Vector3(7.5, 0.03, float(i))))
+				xf.append(Transform3D(Basis.IDENTITY, c + Vector3(-7.5, 0.03, float(i))))
+				xf.append(Transform3D(rot90, c + Vector3(float(i), 0.03, 7.5)))
+				xf.append(Transform3D(rot90, c + Vector3(float(i), 0.03, -7.5)))
+	mm.instance_count = xf.size()
+	for i in xf.size():
+		mm.set_instance_transform(i, xf[i])
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	add_child(inst)
+
+func _curbs() -> void:
+	# Light curb edging around every block so streets read at a glance.
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var strip := BoxMesh.new()
+	strip.size = Vector3(SLAB, 0.06, 0.28)
+	strip.material = _mat(Color(0.32, 0.32, 0.36))
+	mm.mesh = strip
+	var rot90 := Basis.from_euler(Vector3(0, PI / 2.0, 0))
+	var xf: Array[Transform3D] = []
+	var e := SLAB / 2.0 - 0.14
+	for i in N:
+		for j in N:
+			var c := block_center(i, j) + Vector3(0, CURB_H + 0.03, 0)
+			xf.append(Transform3D(Basis.IDENTITY, c + Vector3(0, 0, e)))
+			xf.append(Transform3D(Basis.IDENTITY, c + Vector3(0, 0, -e)))
+			xf.append(Transform3D(rot90, c + Vector3(e, 0, 0)))
+			xf.append(Transform3D(rot90, c + Vector3(-e, 0, 0)))
+	mm.instance_count = xf.size()
+	for i in xf.size():
+		mm.set_instance_transform(i, xf[i])
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	add_child(inst)
+
+func _skyline() -> void:
+	# A distant ring of silhouette towers so the horizon is never empty,
+	# including across the harbor where the fog eats them beautifully.
+	var r2 := RandomNumberGenerator.new()
+	r2.seed = CITY_SEED + 7
+	for i in 64:
+		var ang := TAU * float(i) / 64.0 + r2.randf_range(-0.04, 0.04)
+		var dist := r2.randf_range(380.0, 540.0)
+		var w := r2.randf_range(25.0, 60.0)
+		var h := r2.randf_range(50.0, 160.0)
+		var mi := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(w, h, w)
+		mesh.material = building_mats[r2.randi_range(0, building_mats.size() - 1)]
+		mi.mesh = mesh
+		mi.position = Vector3(cos(ang) * dist, h / 2.0 - 6.0, sin(ang) * dist)
+		add_child(mi)
+
 func _perimeter_walls() -> void:
 	var wall_mat := _mat(Color(0.06, 0.06, 0.1), Color(0.71, 0.29, 1.0), 1.8)
 	var half := N * PITCH / 2.0 + 6.0
@@ -381,6 +453,18 @@ func _plaza(i: int, j: int) -> void:
 	_static_box(self, Vector3(2.2, 9.0, 2.2), c + Vector3(0, CURB_H + 4.5, 0), glow)
 	var ring := _mat(Color(0.08, 0.08, 0.1), Color(1.0, 0.18, 0.58), 3.0)
 	_static_box(self, Vector3(6.0, 0.5, 6.0), c + Vector3(0, CURB_H + 0.25, 0), ring)
+	# Rotating holographic welcome sign above the monument.
+	holo = Node3D.new()
+	holo.position = c + Vector3(0, CURB_H + 12.0, 0)
+	add_child(holo)
+	for side in [0.0, PI]:
+		var label := Label3D.new()
+		label.text = "WELCOME TO NEON HARBOR"
+		label.font_size = 96
+		label.pixel_size = 0.014
+		label.modulate = Color(0.4, 1.5, 1.8, 0.85)
+		label.rotation.y = side
+		holo.add_child(label)
 
 func _warehouse_block(i: int, j: int) -> void:
 	var c := _slab(i, j, Color(0.10, 0.10, 0.12))
@@ -565,6 +649,8 @@ func spawn_pigeon_flock(near: Vector3) -> void:
 	add_child(flock)
 
 func _process(delta: float) -> void:
+	if holo != null:
+		holo.rotation.y += delta * 0.5
 	# Aircraft beacons blink in unison, neon signs flicker individually.
 	blink_t += delta
 	if blink_t > 0.7:
@@ -588,14 +674,24 @@ func _make_building_mats() -> void:
 		var img := Image.create(32, 32, false, Image.FORMAT_RGB8)
 		img.fill(Color(0.01, 0.01, 0.02))
 		var warm := rng.randf() < 0.5
-		for cy in range(0, 32, 4):
-			for cx in range(0, 32, 4):
-				if rng.randf() < 0.42:
-					var b := rng.randf_range(0.5, 1.0)
-					var col := Color(b, b * 0.85, b * 0.6) if warm else Color(b * 0.7, b * 0.9, b)
-					for px in 2:
+		if v % 3 == 2:
+			# Office towers: full horizontal light bands on some floors.
+			for cy in range(0, 32, 4):
+				if rng.randf() < 0.35:
+					var bb := rng.randf_range(0.35, 0.7)
+					var bc := Color(bb, bb * 0.9, bb * 0.7) if warm else Color(bb * 0.65, bb * 0.85, bb)
+					for px in 32:
 						for py in 2:
-							img.set_pixel(cx + 1 + px, cy + 1 + py, col)
+							img.set_pixel(px, cy + 1 + py, bc)
+		else:
+			for cy in range(0, 32, 4):
+				for cx in range(0, 32, 4):
+					if rng.randf() < 0.42:
+						var b := rng.randf_range(0.5, 1.0)
+						var col := Color(b, b * 0.85, b * 0.6) if warm else Color(b * 0.7, b * 0.9, b)
+						for px in 2:
+							for py in 2:
+								img.set_pixel(cx + 1 + px, cy + 1 + py, col)
 		var tex := ImageTexture.create_from_image(img)
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(0.05, 0.055, 0.085)

@@ -36,6 +36,8 @@ func _ready() -> void:
 	if kind == "sports":
 		power = 5600.0
 		top_speed = 34.0
+	elif kind == "taxi":
+		color = Color(0.95, 0.75, 0.05)
 	elif kind == "police":
 		power = 5200.0
 		top_speed = 31.0
@@ -94,6 +96,11 @@ func _build_body() -> void:
 	var low_h := 0.5 if kind == "sports" else 0.6
 	_box(Vector3(1.95, low_h, 4.3), Vector3(0, 0.35 + low_h / 2.0, 0), paint)
 	_box(Vector3(1.7, 0.45, 2.0), Vector3(0, 0.35 + low_h + 0.22, 0.15), glass)
+	# Angled windshield and rear glass for an actual car silhouette.
+	var front_glass := _box(Vector3(1.62, 0.05, 1.0), Vector3(0, 0.35 + low_h + 0.24, -0.78), glass)
+	front_glass.rotation.x = -0.48
+	var rear_glass := _box(Vector3(1.62, 0.05, 0.85), Vector3(0, 0.35 + low_h + 0.26, 1.1), glass)
+	rear_glass.rotation.x = 0.55
 	# Headlights and tail lights.
 	var head := _light_mat(Color(1.0, 0.95, 0.8), 4.0)
 	tail_mat = _light_mat(Color(1.0, 0.1, 0.1), 3.0)
@@ -109,15 +116,17 @@ func _build_body() -> void:
 	head_beam = SpotLight3D.new()
 	head_beam.position = Vector3(0, 1.1, -1.8)
 	head_beam.rotation_degrees = Vector3(-14, 180, 0)
-	head_beam.spot_range = 34.0
-	head_beam.spot_angle = 38.0
-	head_beam.light_energy = 4.0
+	head_beam.spot_range = 38.0
+	head_beam.spot_angle = 42.0
+	head_beam.light_energy = 5.5
 	head_beam.light_color = Color(1.0, 0.95, 0.85)
 	head_beam.visible = false
 	add_child(head_beam)
 	if kind == "police":
 		_box(Vector3(1.6, 0.18, 0.5), Vector3(0, 1.32, 0.1), _light_mat(Color(0.9, 0.9, 1.0), 0.5))
 		_box(Vector3(0.6, 0.3, 4.2), Vector3(0, 0.7, 0), _light_mat(Color(1, 1, 1), 0.8))
+	elif kind == "taxi":
+		_box(Vector3(0.8, 0.22, 0.4), Vector3(0, 1.4, 0.1), _light_mat(Color(1.0, 0.8, 0.2), 2.2))
 
 func _light_mat(c: Color, energy: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -164,6 +173,19 @@ func _build_wheels() -> void:
 		mi.mesh = mesh
 		mi.rotation.z = PI / 2.0
 		wheel.add_child(mi)
+		var hub := MeshInstance3D.new()
+		var hub_mesh := CylinderMesh.new()
+		hub_mesh.top_radius = 0.17
+		hub_mesh.bottom_radius = 0.17
+		hub_mesh.height = 0.27
+		var hub_mat := StandardMaterial3D.new()
+		hub_mat.albedo_color = Color(0.55, 0.55, 0.6)
+		hub_mat.metallic = 0.85
+		hub_mat.roughness = 0.25
+		hub_mesh.material = hub_mat
+		hub.mesh = hub_mesh
+		hub.position = Vector3.ZERO
+		mi.add_child(hub)
 
 func forward_speed() -> float:
 	return linear_velocity.dot(-global_transform.basis.z)

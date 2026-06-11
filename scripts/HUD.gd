@@ -19,6 +19,7 @@ var prompt_label: Label
 var big_label: Label
 var toast_box: VBoxContainer
 var map_container: SubViewportContainer
+var map_frame: Panel
 var map_camera: Camera3D
 
 func _ready() -> void:
@@ -100,6 +101,7 @@ func apply_settings() -> void:
 	if not fps_label.visible:
 		fps_label.text = ""
 	map_container.visible = bool(Game.setting("minimap"))
+	map_frame.visible = map_container.visible
 
 func _label(parent: Node, size: int, color: Color) -> Label:
 	var l := Label.new()
@@ -112,6 +114,20 @@ func _label(parent: Node, size: int, color: Color) -> Label:
 	return l
 
 func _build_minimap(root: Control) -> void:
+	# Neon frame behind the map.
+	map_frame = Panel.new()
+	var frame := map_frame
+	var fsb := StyleBoxFlat.new()
+	fsb.bg_color = Color(0.02, 0.03, 0.1, 0.9)
+	fsb.border_color = CYAN
+	fsb.set_border_width_all(2)
+	fsb.set_corner_radius_all(8)
+	frame.add_theme_stylebox_override("panel", fsb)
+	frame.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	frame.position = Vector2(11, -241)
+	frame.size = Vector2(230, 230)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(frame)
 	map_container = SubViewportContainer.new()
 	map_container.stretch = true
 	map_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -147,6 +163,7 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_minimap"):
 		map_container.visible = not map_container.visible
+		map_frame.visible = map_container.visible
 
 func _on_heat(stars: int) -> void:
 	stars_label.text = "WANTED " + "*".repeat(stars) if stars > 0 else ""

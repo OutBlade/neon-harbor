@@ -11,6 +11,7 @@ func _ready() -> void:
 	visible = false
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.theme = UITheme.build()
 	add_child(root)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.45)

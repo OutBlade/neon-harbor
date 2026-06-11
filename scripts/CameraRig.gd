@@ -11,6 +11,7 @@ var manual_timer := 0.0
 var cine_t := 0.0
 var camera: Camera3D
 var rain: GPUParticles3D
+var motes: GPUParticles3D
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -50,6 +51,34 @@ func _build_rain() -> void:
 	rain.visibility_aabb = AABB(Vector3(-40, -25, -40), Vector3(80, 50, 80))
 	rain.top_level = true
 	add_child(rain)
+	# Slow glowing motes drifting in the night air.
+	motes = GPUParticles3D.new()
+	motes.amount = 90
+	motes.lifetime = 7.0
+	var mpm := ParticleProcessMaterial.new()
+	mpm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mpm.emission_box_extents = Vector3(18, 7, 18)
+	mpm.direction = Vector3(0, 1, 0)
+	mpm.spread = 180.0
+	mpm.initial_velocity_min = 0.1
+	mpm.initial_velocity_max = 0.5
+	mpm.gravity = Vector3(0, 0.12, 0)
+	motes.process_material = mpm
+	var mq := QuadMesh.new()
+	mq.size = Vector2(0.05, 0.05)
+	var mm := StandardMaterial3D.new()
+	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mm.albedo_color = Color(1.0, 0.85, 0.6, 0.5)
+	mm.emission_enabled = true
+	mm.emission = Color(1.0, 0.8, 0.5)
+	mm.emission_energy_multiplier = 1.3
+	mq.material = mm
+	motes.draw_pass_1 = mq
+	motes.visibility_aabb = AABB(Vector3(-30, -15, -30), Vector3(60, 30, 60))
+	motes.top_level = true
+	add_child(motes)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -64,6 +93,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if rain != null:
 		rain.global_position = global_position + Vector3(0, 14, 0)
+	if motes != null:
+		motes.global_position = global_position
 	manual_timer = maxf(manual_timer - delta, 0.0)
 	if cine_t > 0.0:
 		# Slow dramatic orbit for WASTED and BUSTED moments.
