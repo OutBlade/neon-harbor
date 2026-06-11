@@ -4,8 +4,11 @@
 [Setup]
 AppId={{9C4B6A1E-7F2D-4E8B-AD53-1A6E0B9F2C77}
 AppName=Neon Harbor
-AppVersion=1.1.0
+AppVersion=1.2.0
 AppPublisher=OutBlade
+; Per-user install so the built-in auto updater can replace the binary
+; without elevation.
+PrivilegesRequired=lowest
 DefaultDirName={autopf}\Neon Harbor
 DisableProgramGroupPage=yes
 OutputDir=..\dist

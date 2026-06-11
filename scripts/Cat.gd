@@ -50,6 +50,7 @@ func _process(delta: float) -> void:
 			var p := AudioStreamPlayer3D.new()
 			p.stream = Game.sound.stream("meow")
 			p.unit_size = 8.0
+			p.bus = "SFX"
 			add_child(p)
 			p.play()
 			p.finished.connect(p.queue_free)

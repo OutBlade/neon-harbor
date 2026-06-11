@@ -20,8 +20,32 @@ var missions_done: Array = []
 var total_busts: int = 0
 var total_wrecks: int = 0
 var cats_petted: Array = []
-var fancy_graphics: bool = true
 var horn_style: int = 0
+
+const DEFAULT_SETTINGS := {
+	"fancy": true,
+	"fullscreen": false,
+	"vsync": true,
+	"rain": true,
+	"glow": true,
+	"fps_counter": false,
+	"master_vol": 1.0,
+	"music_vol": 0.8,
+	"sfx_vol": 1.0,
+	"sensitivity": 1.0,
+	"invert_y": false,
+	"traffic": 1,
+	"peds": 1,
+	"minimap": true,
+	"auto_update": true,
+}
+var settings: Dictionary = DEFAULT_SETTINGS.duplicate()
+
+var fancy_graphics: bool:
+	get:
+		return settings["fancy"]
+	set(v):
+		settings["fancy"] = v
 
 var player: CharacterBody3D = null
 var player_car: VehicleBody3D = null
@@ -37,12 +61,42 @@ func _enter_tree() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	rng.randomize()
 	_register_inputs()
+	_setup_audio_buses()
 
 func _ready() -> void:
 	sound = preload("res://scripts/SoundBank.gd").new()
 	sound.name = "SoundBank"
 	add_child(sound)
 	load_game()
+	apply_settings.call_deferred()
+
+func _setup_audio_buses() -> void:
+	AudioServer.add_bus()
+	AudioServer.set_bus_name(1, "Music")
+	AudioServer.add_bus()
+	AudioServer.set_bus_name(2, "SFX")
+
+func setting(key: String) -> Variant:
+	return settings.get(key, DEFAULT_SETTINGS.get(key))
+
+func apply_settings() -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(float(settings["master_vol"]), 0.0001)))
+	AudioServer.set_bus_volume_db(1, linear_to_db(maxf(float(settings["music_vol"]), 0.0001)))
+	AudioServer.set_bus_volume_db(2, linear_to_db(maxf(float(settings["sfx_vol"]), 0.0001)))
+	DisplayServer.window_set_vsync_mode(
+		DisplayServer.VSYNC_ENABLED if settings["vsync"] else DisplayServer.VSYNC_DISABLED)
+	var is_fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	if bool(settings["fullscreen"]) != is_fs:
+		DisplayServer.window_set_mode(
+			DisplayServer.WINDOW_MODE_FULLSCREEN if settings["fullscreen"] else DisplayServer.WINDOW_MODE_WINDOWED)
+	for city in get_tree().get_nodes_in_group("city"):
+		city.apply_quality(bool(settings["fancy"]))
+		city.environment.glow_enabled = bool(settings["glow"])
+	for rain in get_tree().get_nodes_in_group("rain"):
+		rain.emitting = bool(settings["fancy"]) and bool(settings["rain"])
+	if hud != null:
+		hud.apply_settings()
+	save_game()
 
 func _process(delta: float) -> void:
 	if not playing:
@@ -129,7 +183,7 @@ func save_game() -> void:
 		"total_busts": total_busts,
 		"total_wrecks": total_wrecks,
 		"cats_petted": cats_petted,
-		"fancy_graphics": fancy_graphics,
+		"settings": settings,
 	}))
 
 func load_game() -> void:
@@ -146,7 +200,12 @@ func load_game() -> void:
 	total_busts = int(data.get("total_busts", 0))
 	total_wrecks = int(data.get("total_wrecks", 0))
 	cats_petted = data.get("cats_petted", [])
-	fancy_graphics = bool(data.get("fancy_graphics", true))
+	var saved: Variant = data.get("settings", {})
+	if typeof(saved) == TYPE_DICTIONARY:
+		for k in DEFAULT_SETTINGS:
+			settings[k] = saved.get(k, DEFAULT_SETTINGS[k])
+	elif data.has("fancy_graphics"):
+		settings["fancy"] = bool(data.get("fancy_graphics", true))
 
 func wipe_save() -> void:
 	money = 0

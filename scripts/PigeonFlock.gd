@@ -71,6 +71,7 @@ func _scatter(by_car: bool) -> void:
 	var snd := AudioStreamPlayer3D.new()
 	snd.stream = Game.sound.stream("flutter")
 	snd.unit_size = 8.0
+	snd.bus = "SFX"
 	add_child(snd)
 	snd.play()
 	if by_car and Game.rng.randf() < 0.22:

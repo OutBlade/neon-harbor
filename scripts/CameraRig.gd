@@ -53,8 +53,10 @@ func _build_rain() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		yaw -= event.relative.x * 0.0028
-		pitch = clampf(pitch - event.relative.y * 0.0028, -1.1, 0.45)
+		var s := 0.0028 * float(Game.setting("sensitivity"))
+		var dy: float = event.relative.y * (-1.0 if bool(Game.setting("invert_y")) else 1.0)
+		yaw -= event.relative.x * s
+		pitch = clampf(pitch - dy * s, -1.1, 0.45)
 		manual_timer = 1.6
 
 func _physics_process(delta: float) -> void:

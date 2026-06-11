@@ -28,6 +28,7 @@ func _ready() -> void:
 	siren = AudioStreamPlayer3D.new()
 	siren.stream = Game.sound.stream("siren")
 	siren.unit_size = 14.0
+	siren.bus = "SFX"
 	add_child(siren)
 	siren.play()
 	CityGen.add_blip(self, Color(1.0, 0.15, 0.15), 3.0)

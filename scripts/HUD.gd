@@ -10,6 +10,7 @@ const RED := Color(1.0, 0.25, 0.25)
 var money_label: Label
 var stars_label: Label
 var cats_label: Label
+var fps_label: Label
 var mission_title: Label
 var mission_obj: Label
 var mission_timer: Label
@@ -64,6 +65,10 @@ func _ready() -> void:
 	speed_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	speed_label.position = Vector2(-200, -60)
 
+	fps_label = _label(root, 16, Color(0.6, 1.0, 0.6))
+	fps_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	fps_label.position = Vector2(-110, 12)
+
 	prompt_label = _label(root, 22, Color.WHITE)
 	prompt_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	prompt_label.position = Vector2(-150, -140)
@@ -88,6 +93,13 @@ func _ready() -> void:
 	money_label.text = "$ %d" % Game.money
 	_on_heat(Game.stars)
 	set_mission("", "", -1.0)
+	apply_settings()
+
+func apply_settings() -> void:
+	fps_label.visible = bool(Game.setting("fps_counter"))
+	if not fps_label.visible:
+		fps_label.text = ""
+	map_container.visible = bool(Game.setting("minimap"))
 
 func _label(parent: Node, size: int, color: Color) -> Label:
 	var l := Label.new()
@@ -124,6 +136,8 @@ func _process(_delta: float) -> void:
 		var p := Game.player_position()
 		map_camera.global_position = Vector3(p.x, 180.0, p.z)
 	cats_label.text = "CATS %d/5" % Game.cats_petted.size() if Game.cats_petted.size() > 0 else ""
+	if fps_label.visible:
+		fps_label.text = "%d FPS" % int(Engine.get_frames_per_second())
 	if Game.player_car != null:
 		speed_label.text = "%d km/h" % int(Game.player_car.linear_velocity.length() * 3.6)
 		speed_label.visible = true

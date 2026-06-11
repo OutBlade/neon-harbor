@@ -31,9 +31,11 @@ func _ready() -> void:
 	streams["flutter"] = _make_flutter()
 	ui_player = AudioStreamPlayer.new()
 	ui_player.volume_db = -6.0
+	ui_player.bus = "SFX"
 	add_child(ui_player)
 	music_player = AudioStreamPlayer.new()
 	music_player.volume_db = -11.0
+	music_player.bus = "Music"
 	add_child(music_player)
 	# Music buffers are the most expensive; build them after the first frame.
 	_build_music.call_deferred()

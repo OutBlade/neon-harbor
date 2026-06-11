@@ -46,6 +46,7 @@ func _ready() -> void:
 	engine_audio.stream = Game.sound.stream("engine")
 	engine_audio.unit_size = 6.0
 	engine_audio.max_db = -3.0
+	engine_audio.bus = "SFX"
 	add_child(engine_audio)
 	_build_smoke()
 
@@ -342,6 +343,7 @@ func _play_oneshot(name_: String) -> void:
 	var p := AudioStreamPlayer3D.new()
 	p.stream = Game.sound.stream(name_)
 	p.unit_size = 10.0
+	p.bus = "SFX"
 	add_child(p)
 	p.play()
 	p.finished.connect(p.queue_free)

@@ -11,6 +11,10 @@ var menu_camera: Camera3D
 var menu_ui: CanvasLayer
 var pause_ui: CanvasLayer
 var controls_panel: PanelContainer
+var stats_panel: PanelContainer
+var settings_menu: SettingsMenu
+var updater: Updater
+var update_button: Button
 var orbit_t := 0.0
 var tick := 0.0
 var won := false
@@ -44,9 +48,21 @@ func _ready() -> void:
 	menu_camera.current = true
 	_build_menu()
 	_build_pause_ui()
+	settings_menu = SettingsMenu.new()
+	add_child(settings_menu)
+	updater = Updater.new()
+	add_child(updater)
+	updater.update_available.connect(_on_update_available)
+	updater.status.connect(func(text: String) -> void: Game.notify.emit(text))
+	if bool(Game.setting("auto_update")):
+		updater.check()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if "--autoshot" in OS.get_cmdline_user_args():
 		_autoshot()
+
+func _on_update_available(version: String) -> void:
+	update_button.text = "UPDATE TO v" + version
+	update_button.visible = true
 
 func _process(delta: float) -> void:
 	if state == State.MENU:
@@ -98,10 +114,16 @@ func start_game() -> void:
 	Game.playing = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Game.notify.emit("Welcome to Neon Harbor. Find the yellow beacon")
-	for i in 12:
+	for i in _traffic_target():
 		_spawn_traffic_car()
-	for i in 34:
+	for i in _ped_target():
 		_spawn_ped()
+
+func _traffic_target() -> int:
+	return [6, 12, 18][int(Game.setting("traffic"))]
+
+func _ped_target() -> int:
+	return [16, 34, 50][int(Game.setting("peds"))]
 
 func _on_stars_changed(stars: int) -> void:
 	if stars > prev_stars and Game.playing:
@@ -187,7 +209,7 @@ func _spawn_police() -> void:
 
 func _maintain_traffic() -> void:
 	var count := get_tree().get_nodes_in_group("traffic").size()
-	for i in 12 - count:
+	for i in _traffic_target() - count:
 		_spawn_traffic_car()
 
 func _spawn_traffic_car() -> void:
@@ -213,7 +235,7 @@ func _maintain_peds() -> void:
 		alive += 1
 		if ped.global_position.distance_to(p) > 230.0:
 			ped.assign_block(_block_near_player())
-	for i in 34 - alive:
+	for i in _ped_target() - alive:
 		_spawn_ped()
 	# Keep the pigeon population thriving.
 	var flocks := get_tree().get_nodes_in_group("pigeons").size()
@@ -279,26 +301,67 @@ func _build_menu() -> void:
 	_menu_button(vb, "START GAME", func() -> void:
 		Game.sound.play_ui("click")
 		start_game())
+	_menu_button(vb, "SETTINGS", func() -> void:
+		Game.sound.play_ui("click")
+		settings_menu.open())
 	_menu_button(vb, "CONTROLS", func() -> void:
 		Game.sound.play_ui("click")
 		controls_panel.visible = not controls_panel.visible)
-	var gfx := Button.new()
-	gfx.text = "GRAPHICS: FANCY" if Game.fancy_graphics else "GRAPHICS: FAST"
-	gfx.add_theme_font_size_override("font_size", 24)
-	gfx.pressed.connect(func() -> void:
+	_menu_button(vb, "STATS", func() -> void:
 		Game.sound.play_ui("click")
-		Game.fancy_graphics = not Game.fancy_graphics
-		gfx.text = "GRAPHICS: FANCY" if Game.fancy_graphics else "GRAPHICS: FAST"
-		city.apply_quality(Game.fancy_graphics)
-		Game.save_game())
-	vb.add_child(gfx)
+		_refresh_stats()
+		stats_panel.visible = not stats_panel.visible)
 	_menu_button(vb, "RESET SAVE", func() -> void:
 		Game.sound.play_ui("click")
 		Game.wipe_save()
 		stats.text = "Saved cash $0    Jobs done 0 of 6")
 	_menu_button(vb, "QUIT", func() -> void: get_tree().quit())
+	update_button = Button.new()
+	update_button.visible = false
+	update_button.add_theme_font_size_override("font_size", 24)
+	update_button.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+	update_button.pressed.connect(func() -> void:
+		Game.sound.play_ui("click")
+		update_button.text = "DOWNLOADING..."
+		update_button.disabled = true
+		updater.download_and_install())
+	vb.add_child(update_button)
+	var version := Label.new()
+	version.text = "v" + str(ProjectSettings.get_setting("application/config/version", "?"))
+	version.add_theme_font_size_override("font_size", 13)
+	version.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+	vb.add_child(version)
 	controls_panel = _make_controls_panel()
 	root.add_child(controls_panel)
+	stats_panel = _make_stats_panel()
+	root.add_child(stats_panel)
+
+func _make_stats_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.01, 0.01, 0.05, 0.88)
+	sb.border_color = Color(1.0, 0.85, 0.3)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(10)
+	sb.content_margin_left = 30.0
+	sb.content_margin_right = 30.0
+	sb.content_margin_top = 20.0
+	sb.content_margin_bottom = 20.0
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.position = Vector2(-160, -140)
+	panel.visible = false
+	var l := Label.new()
+	l.name = "StatsText"
+	l.add_theme_font_size_override("font_size", 19)
+	panel.add_child(l)
+	return panel
+
+func _refresh_stats() -> void:
+	var l: Label = stats_panel.get_node("StatsText")
+	l.text = "CAREER RECORD\n\nCash on hand: $%d\nStory jobs done: %d of 6\nGolden cats petted: %d of 5\nTimes busted: %d\nTimes wrecked: %d\n\nThe harbor remembers everything." % [
+		Game.money, Game.missions_done.size(), Game.cats_petted.size(),
+		Game.total_busts, Game.total_wrecks]
 
 func _menu_button(parent: Node, text: String, action: Callable) -> void:
 	var b := Button.new()
@@ -350,6 +413,9 @@ func _build_pause_ui() -> void:
 	t.add_theme_color_override("font_color", HUD.CYAN)
 	vb.add_child(t)
 	_menu_button(vb, "RESUME", _toggle_pause)
+	_menu_button(vb, "SETTINGS", func() -> void:
+		Game.sound.play_ui("click")
+		settings_menu.open())
 	_menu_button(vb, "QUIT TO MENU", func() -> void:
 		get_tree().paused = false
 		Game.save_game()

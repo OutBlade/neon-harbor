@@ -56,6 +56,7 @@ func block_center(i: int, j: int) -> Vector3:
 	return Vector3(off + i * PITCH, 0.0, off + j * PITCH)
 
 func build() -> void:
+	add_to_group("city")
 	rng.seed = CITY_SEED
 	_make_building_mats()
 	_environment()
@@ -142,8 +143,6 @@ func apply_quality(fancy: bool) -> void:
 	environment.ssr_enabled = fancy
 	environment.ssr_max_steps = 32
 	environment.glow_intensity = 0.7 if fancy else 0.55
-	for rain in get_tree().get_nodes_in_group("rain"):
-		rain.emitting = fancy
 	var moon := DirectionalLight3D.new()
 	moon.light_color = Color(0.6, 0.7, 1.0)
 	moon.light_energy = 0.35

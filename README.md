@@ -35,7 +35,9 @@ Take any car, run jobs for cash, push your luck to five stars. Every chase ends 
 - Pedestrians who stroll the sidewalks and scatter when things go wrong
 - Five star wanted system: hit and runs raise the heat, cruisers hunt you down and bust you if they corner you
 - Six story missions plus endless courier jobs once the campaign is done
-- Live minimap, cash, mission timers, pause menu, persistent save file
+- Live minimap, cash, mission timers, pause menu, stats screen, persistent save file
+- Built-in auto updater: the game checks GitHub releases on launch, downloads the new version and swaps itself on restart
+- Full settings menu, reachable from the main menu and mid-game from pause: graphics quality, fullscreen, vsync, rain, glow, FPS counter, master, music and SFX volume, mouse sensitivity, invert Y, traffic and pedestrian density, minimap and auto update toggle
 - Procedural audio engine: three radio stations and every sound effect are synthesized from pure math at startup
 - Zero binary assets in the entire repository: every mesh, texture and sound is generated from code
 - Native builds for both x64 and Windows-on-ARM

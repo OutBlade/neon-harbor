@@ -138,6 +138,7 @@ func die(car: VehicleBody3D) -> void:
 	p.stream = Game.sound.stream("clang")
 	p.volume_db = -10.0
 	p.unit_size = 8.0
+	p.bus = "SFX"
 	add_child(p)
 	p.play()
 	p.finished.connect(p.queue_free)

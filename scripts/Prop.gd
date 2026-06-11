@@ -127,6 +127,7 @@ func _on_hit(body: Node) -> void:
 	var p := AudioStreamPlayer3D.new()
 	p.stream = Game.sound.stream("clang")
 	p.unit_size = 12.0
+	p.bus = "SFX"
 	p.position = global_position
 	parent.add_child(p)
 	p.play()
