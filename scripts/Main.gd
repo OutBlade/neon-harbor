@@ -19,6 +19,16 @@ var orbit_t := 0.0
 var tick := 0.0
 var won := false
 var prev_stars := 0
+var weather_t := 0.0
+var spray_cooldown := 0.0
+var fare_state := 0
+var fare_marker: Node3D = null
+var fare_from := Vector3.ZERO
+var photo_on := false
+var photo_cam: Camera3D = null
+var photo_yaw := 0.0
+var photo_pitch := 0.0
+var photo_count := 0
 
 const COP_BANTER: Array[String] = [
 	"Dispatch: suspect is driving like a shopping cart",
@@ -72,20 +82,172 @@ func _process(delta: float) -> void:
 		menu_camera.global_position = center + Vector3(cos(orbit_t) * 170.0, 95.0, sin(orbit_t) * 170.0)
 		menu_camera.look_at(center + Vector3(0, 8, 0), Vector3.UP)
 		return
+	if photo_on:
+		_photo_fly(delta)
+		return
 	if get_tree().paused:
 		return
+	_weather(delta)
+	spray_cooldown = maxf(spray_cooldown - delta, 0.0)
 	tick += delta
 	if tick >= 1.0:
 		tick = 0.0
 		_maintain_police()
 		_maintain_traffic()
 		_maintain_peds()
+		_check_spray()
+		_taxi_fares()
+
+func _weather(delta: float) -> void:
+	# Slow cycle from drizzle to downpour and back.
+	weather_t += delta
+	var f := 0.5 + 0.5 * sin(weather_t * 0.013)
+	for rain in get_tree().get_nodes_in_group("rain"):
+		if rain.emitting:
+			rain.amount_ratio = lerpf(0.15, 1.0, f)
+	if city != null and city.environment != null:
+		city.environment.fog_density = lerpf(0.002, 0.0055, f)
+
+func _check_spray() -> void:
+	if Game.player_car == null or Game.stars <= 0 or spray_cooldown > 0.0:
+		return
+	for s: Vector3 in city.spray_points:
+		if Game.player_car.global_position.distance_to(s) < 5.0:
+			spray_cooldown = 6.0
+			if Game.money >= 300:
+				Game.money -= 300
+				Game.set_heat(0.0)
+				Game.player_car.repaint(CityGen.CAR_COLORS[Game.rng.randi_range(0, CityGen.CAR_COLORS.size() - 1)])
+				Game.sound.play_ui("jingle")
+				Game.notify.emit("Fresh paint. Nobody saw anything")
+			else:
+				Game.notify.emit("Pay N Spray needs $300. You have $%d" % Game.money)
+			return
+
+func _taxi_fares() -> void:
+	var in_taxi: bool = Game.player_car != null and Game.player_car.kind == "taxi"
+	if not in_taxi:
+		if fare_state != 0:
+			fare_state = 0
+			_clear_fare()
+			Game.notify.emit("Fare cancelled. The cab life waits")
+		return
+	if fare_state == 0:
+		var node := CityGen.random_node(Game.rng)
+		var pos := CityGen.node_pos(node.x, node.y) + Vector3(2.6, 0, 0)
+		if pos.distance_to(Game.player_position()) > 60.0:
+			fare_state = 1
+			fare_from = pos
+			fare_marker = _fare_ring(pos, Color(0.4, 1.0, 0.4))
+			Game.notify.emit("Taxi job: pick up the fare at the green beacon")
+	elif fare_marker != null:
+		var d: float = Game.player_car.global_position.distance_to(fare_marker.global_position)
+		if d < 5.0 and Game.player_speed() < 3.0:
+			if fare_state == 1:
+				_clear_fare()
+				var node := CityGen.random_node(Game.rng)
+				var drop := CityGen.node_pos(node.x, node.y) + Vector3(-2.6, 0, 0)
+				fare_state = 2
+				fare_marker = _fare_ring(drop, Color(1.0, 0.85, 0.2))
+				Game.notify.emit("Fare aboard. Go to the gold beacon")
+			else:
+				var pay := 60 + int(fare_from.distance_to(fare_marker.global_position) * 0.5)
+				_clear_fare()
+				fare_state = 0
+				Game.add_money(pay)
+				Game.sound.play_ui("pickup")
+				Game.notify.emit("Fare paid. They even tipped")
+
+func _fare_ring(pos: Vector3, col: Color) -> Node3D:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 2.6
+	torus.outer_radius = 3.1
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.05, 0.05, 0.05)
+	m.emission_enabled = true
+	m.emission = col
+	m.emission_energy_multiplier = 3.2
+	torus.material = m
+	ring.mesh = torus
+	ring.position = pos + Vector3(0, 0.4, 0)
+	add_child(ring)
+	CityGen.add_blip(ring, col, 3.0)
+	return ring
+
+func _clear_fare() -> void:
+	if fare_marker != null and is_instance_valid(fare_marker):
+		fare_marker.queue_free()
+	fare_marker = null
 
 func _unhandled_input(event: InputEvent) -> void:
 	if state != State.PLAYING:
 		return
+	if photo_on and event is InputEventMouseMotion:
+		photo_yaw -= event.relative.x * 0.003
+		photo_pitch = clampf(photo_pitch - event.relative.y * 0.003, -1.4, 1.4)
+		return
+	if event.is_action_pressed("photo_mode"):
+		_toggle_photo_mode()
+		return
+	if photo_on:
+		if event.is_action_pressed("photo_snap"):
+			_photo_snap()
+		return
 	if event.is_action_pressed("pause"):
 		_toggle_pause()
+
+# ------------------------------------------------------------ photo mode
+
+func _toggle_photo_mode() -> void:
+	if not Game.playing and not photo_on:
+		return
+	photo_on = not photo_on
+	if photo_on:
+		get_tree().paused = true
+		Game.hud.visible = false
+		photo_cam = Camera3D.new()
+		photo_cam.fov = 70.0
+		photo_cam.cull_mask = 1
+		add_child(photo_cam)
+		var rig_cam: Camera3D = Game.camera_rig.camera
+		photo_cam.global_transform = rig_cam.global_transform
+		var e := photo_cam.global_transform.basis.get_euler()
+		photo_yaw = e.y
+		photo_pitch = e.x
+		photo_cam.current = true
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Game.notify.emit("Photo mode: fly with WASD, Enter saves, P exits")
+	else:
+		get_tree().paused = false
+		Game.hud.visible = true
+		Game.camera_rig.camera.current = true
+		photo_cam.queue_free()
+		photo_cam = null
+		if photo_count > 0:
+			Game.notify.emit("%d photos saved to user://photos" % photo_count)
+			photo_count = 0
+
+func _photo_fly(delta: float) -> void:
+	if photo_cam == null:
+		return
+	photo_cam.global_transform.basis = Basis.from_euler(Vector3(photo_pitch, photo_yaw, 0))
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var speed := 28.0 if Input.is_action_pressed("sprint") else 12.0
+	var basis := photo_cam.global_transform.basis
+	var motion := (basis.x * input.x + basis.z * input.y) * speed * delta
+	if Input.is_action_pressed("jump"):
+		motion.y += speed * delta
+	photo_cam.global_position += motion
+
+func _photo_snap() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://photos"))
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	var path := "user://photos/photo_%d.png" % Time.get_unix_time_from_system()
+	img.save_png(path)
+	photo_count += 1
+	Game.sound.play_ui("click")
 
 # ------------------------------------------------------------ session
 
@@ -203,6 +365,8 @@ func _spawn_police() -> void:
 		var d := pos.distance_to(p)
 		if d > 80.0 and d < 190.0:
 			var cop := PoliceCar.new()
+			if Game.stars >= 5:
+				cop.kind = "swat"
 			add_child(cop)
 			cop.global_position = pos + Vector3(2.6, 0.7, 0)
 			cop.look_at(Vector3(p.x, 0.7, p.z), Vector3.UP)
@@ -384,9 +548,10 @@ func _make_stats_panel() -> PanelContainer:
 
 func _refresh_stats() -> void:
 	var l: Label = stats_panel.get_node("StatsText")
-	l.text = "CAREER RECORD\n\nCash on hand: $%d\nStory jobs done: %d of 6\nGolden cats petted: %d of 5\nTimes busted: %d\nTimes wrecked: %d\n\nThe harbor remembers everything." % [
+	l.text = "CAREER RECORD\n\nCash on hand: $%d\nStory jobs done: %d of 6\nGolden cats petted: %d of 5\nTimes busted: %d\nTimes wrecked: %d\n\nTop speed: %.0f km/h\nBest airtime: %.1f s\nLongest chase survived: %.0f s\n\nThe harbor remembers everything." % [
 		Game.money, Game.missions_done.size(), Game.cats_petted.size(),
-		Game.total_busts, Game.total_wrecks]
+		Game.total_busts, Game.total_wrecks,
+		Game.records["top_speed"], Game.records["best_air"], Game.records["longest_chase"]]
 
 func _menu_button(parent: Node, text: String, action: Callable) -> void:
 	var b := Button.new()
@@ -412,7 +577,7 @@ func _make_controls_panel() -> PanelContainer:
 	panel.visible = false
 	var l := Label.new()
 	l.add_theme_font_size_override("font_size", 18)
-	l.text = "ON FOOT\n  WASD or left stick: move\n  Shift: sprint\n  Space: jump\n  E: enter a car\n\nDRIVING\n  W / S: throttle and brake\n  A / D: steer\n  Space: handbrake\n  H: horn\n  E: get out\n\nGENERAL\n  Mouse: camera\n  M: toggle minimap\n  Esc: pause\n\nGamepad works too. Stay out of the harbor."
+	l.text = "ON FOOT\n  WASD or left stick: move\n  Shift: sprint\n  Space: jump\n  E: enter a car, pet cats\n\nDRIVING\n  W / S: throttle and brake\n  A / D: steer\n  Shift: NITRO\n  Space: handbrake\n  H: horn   J: horn style   R: radio\n  E: get out\n\nGENERAL\n  Mouse: camera\n  P: photo mode (Enter saves)\n  M: toggle minimap\n  Esc: pause\n\nDrive a yellow cab to pick up fares.\nPay N Spray clears your stars for $300.\nGamepad works too. Stay out of the harbor."
 	panel.add_child(l)
 	return panel
 
@@ -495,4 +660,5 @@ func _snap(name_: String) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("res://shots/%s.png" % name_)
-	print("saved shot: %s  FPS: %d" % [name_, int(Engine.get_frames_per_second())])
+	print("saved shot: %s  FPS: %d  draws: %d" % [name_, int(Engine.get_frames_per_second()),
+		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])

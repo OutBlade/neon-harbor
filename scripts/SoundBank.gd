@@ -7,6 +7,7 @@ const STATIONS: Array = [
 	{"name": "NEON FM", "stream": "music"},
 	{"name": "POLKA 24/7", "stream": "polka"},
 	{"name": "ELEVATOR.WAV", "stream": "jazz"},
+	{"name": "LO-FI 99.9", "stream": "lofi"},
 ]
 
 var streams: Dictionary = {}
@@ -46,6 +47,7 @@ func _build_music() -> void:
 	music_player.play()
 	streams["polka"] = _make_polka()
 	streams["jazz"] = _make_jazz()
+	streams["lofi"] = _make_lofi()
 
 func next_station() -> String:
 	station = (station + 1) % STATIONS.size()
@@ -291,6 +293,49 @@ func _make_jazz() -> AudioStreamWAV:
 		s += sin(TAU * bass_f * t) * 0.22 * exp(-2.5 * bt)
 		lp += 0.5 * ((randf() * 2.0 - 1.0) - lp)
 		s += lp * 0.05 * exp(-14.0 * bt)
+		out[i] = clampf(s, -1.0, 1.0)
+	return _wav(out, true)
+
+func _make_lofi() -> AudioStreamWAV:
+	# 70 BPM lo-fi: dusty epiano sevenths, lazy bass, soft thump,
+	# vinyl crackle. Studying for the heist.
+	var beat := 60.0 / 70.0
+	var bar := beat * 4.0
+	var n := int(RATE * bar * 4.0)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var chords := [
+		[174.61, 220.00, 261.63, 329.63],
+		[164.81, 207.65, 246.94, 311.13],
+		[146.83, 185.00, 220.00, 277.18],
+		[130.81, 164.81, 196.00, 246.94],
+	]
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var bar_i := int(t / bar) % 4
+		var bart := fposmod(t, bar)
+		var half := fposmod(t, bar / 2.0)
+		var chord: Array = chords[bar_i]
+		var s := 0.0
+		# Epiano restrikes every half bar with a wobbly decay.
+		var env := exp(-1.4 * half) * (0.8 + 0.2 * sin(TAU * 5.5 * t))
+		for f0 in chord:
+			s += sin(TAU * float(f0) * t) * 0.055 * env
+			s += sin(TAU * float(f0) * 2.0 * t) * 0.018 * env
+		# Lazy sub bass.
+		var bt := fposmod(t, beat)
+		s += sin(TAU * float(chord[0]) * 0.5 * t) * 0.2 * exp(-2.0 * bt)
+		# Soft kick on 1 and 3, brushed tap on 2 and 4.
+		var beat_i := int(bart / beat) % 4
+		if beat_i % 2 == 0:
+			s += sin(TAU * (48.0 + 60.0 * exp(-22.0 * bt)) * bt) * 0.4 * exp(-8.0 * bt)
+		else:
+			lp += 0.35 * ((randf() * 2.0 - 1.0) - lp)
+			s += lp * 0.12 * exp(-18.0 * bt)
+		# Vinyl crackle.
+		if randf() < 0.0006:
+			s += randf_range(-0.18, 0.18)
 		out[i] = clampf(s, -1.0, 1.0)
 	return _wav(out, true)
 

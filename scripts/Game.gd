@@ -21,6 +21,8 @@ var total_busts: int = 0
 var total_wrecks: int = 0
 var cats_petted: Array = []
 var horn_style: int = 0
+var records: Dictionary = {"top_speed": 0.0, "best_air": 0.0, "longest_chase": 0.0}
+var chase_t := 0.0
 
 const DEFAULT_SETTINGS := {
 	"fancy": true,
@@ -104,6 +106,22 @@ func _process(delta: float) -> void:
 	# Heat decays when no police car is close to the player.
 	if heat > 0.0 and not _police_nearby():
 		set_heat(heat - delta * 0.12)
+	# Track the longest survived chase.
+	if stars > 0:
+		chase_t += delta
+	elif chase_t > 0.0:
+		set_record("longest_chase", chase_t)
+		chase_t = 0.0
+
+func set_record(key: String, value: float) -> void:
+	# Coarse thresholds so a climbing speedometer is one record, not sixty.
+	var thresholds := {"top_speed": 2.0, "best_air": 0.2, "longest_chase": 3.0}
+	if value > float(records.get(key, 0.0)) + float(thresholds[key]):
+		records[key] = value
+		var names := {"top_speed": "TOP SPEED %.0f km/h", "best_air": "AIRTIME %.1f s",
+			"longest_chase": "CHASE SURVIVED %.0f s"}
+		notify.emit("NEW RECORD: " + (names[key] % value))
+		save_game()
 
 func _police_nearby() -> bool:
 	var target := player_position()
@@ -183,6 +201,7 @@ func save_game() -> void:
 		"total_busts": total_busts,
 		"total_wrecks": total_wrecks,
 		"cats_petted": cats_petted,
+		"records": records,
 		"settings": settings,
 	}))
 
@@ -200,6 +219,10 @@ func load_game() -> void:
 	total_busts = int(data.get("total_busts", 0))
 	total_wrecks = int(data.get("total_wrecks", 0))
 	cats_petted = data.get("cats_petted", [])
+	var saved_records: Variant = data.get("records", {})
+	if typeof(saved_records) == TYPE_DICTIONARY:
+		for k in records:
+			records[k] = float(saved_records.get(k, 0.0))
 	var saved: Variant = data.get("settings", {})
 	if typeof(saved) == TYPE_DICTIONARY:
 		for k in DEFAULT_SETTINGS:
@@ -235,6 +258,8 @@ func _register_inputs() -> void:
 	_key("toggle_minimap", KEY_M)
 	_key("radio", KEY_R);         _btn("radio", JOY_BUTTON_DPAD_RIGHT)
 	_key("horn_cycle", KEY_J)
+	_key("photo_mode", KEY_P)
+	_key("photo_snap", KEY_ENTER)
 
 func _ensure(action: String) -> void:
 	if not InputMap.has_action(action):

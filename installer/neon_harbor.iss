@@ -4,7 +4,7 @@
 [Setup]
 AppId={{9C4B6A1E-7F2D-4E8B-AD53-1A6E0B9F2C77}
 AppName=Neon Harbor
-AppVersion=1.3.0
+AppVersion=1.4.0
 AppPublisher=OutBlade
 ; Per-user install so the built-in auto updater can replace the binary
 ; without elevation.

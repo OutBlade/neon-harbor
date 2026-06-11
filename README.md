@@ -43,6 +43,17 @@ Take any car, run jobs for cash, push your luck to five stars. Every chase ends 
 - Zero binary assets in the entire repository: every mesh, texture and sound is generated from code
 - Native builds for both x64 and Windows-on-ARM
 
+## Make a living
+
+- Nitro boost on every car: hold Shift, watch the bar, breathe flames
+- Drive a yellow cab and run endless taxi fares for tips
+- Pay N Spray garages clear your wanted level for $300 and a new paint job
+- Five star heat calls in armored SWAT vans
+- Career records for top speed, best airtime and longest chase survived
+- A monorail circles the city day and night
+- Dynamic weather drifts between drizzle and downpour
+- Photo mode (P): pause the world, fly the camera, save shots with Enter
+
 ## The dumb fun
 
 1. Pedestrians ragdoll into a spinning arc when clipped, physics approved

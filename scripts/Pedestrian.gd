@@ -10,6 +10,7 @@ var corners: Array[Vector3] = []
 var corner_idx := 0
 var flee_timer := 0.0
 var flee_dir := Vector3.ZERO
+var dance_timer := 0.0
 var dead := false
 var flying := false
 var fly_vel := Vector3.ZERO
@@ -67,6 +68,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if not is_on_floor():
 		velocity.y -= 12.0 * delta
+	if dance_timer > 0.0:
+		# Airhorn approved. Spin and bounce on the spot.
+		dance_timer -= delta
+		visual.rotation.y += 9.0 * delta
+		if is_on_floor():
+			velocity.y = 2.6
+		velocity.x = 0.0
+		velocity.z = 0.0
+		move_and_slide()
+		return
 	var dir := Vector3.ZERO
 	if flee_timer > 0.0:
 		flee_timer -= delta
@@ -93,6 +104,12 @@ func _physics_process(delta: float) -> void:
 		var other := col.get_collider()
 		if other is VehicleBody3D and other.linear_velocity.length() > 4.0:
 			die(other)
+
+func dance() -> void:
+	if dead:
+		return
+	dance_timer = 3.2
+	_exclaim()
 
 func scare(from: Vector3) -> void:
 	if dead:

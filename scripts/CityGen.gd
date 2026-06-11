@@ -42,6 +42,13 @@ var blink_on := true
 var blink_t := 0.0
 var flickers: Array = []
 var holo: Node3D = null
+var bb := MeshBatch.new()
+var _mat_cache: Dictionary = {}
+var pole_transforms: Array[Transform3D] = []
+var cone_transforms: Array[Transform3D] = []
+var spray_points: Array[Vector3] = []
+var train_cars: Array = []
+var train_t := 0.0
 
 static func line(k: int) -> float:
 	return -N * PITCH / 2.0 + k * PITCH
@@ -83,6 +90,9 @@ func build() -> void:
 	_beach_balls()
 	_cats()
 	_pigeons()
+	_spray_shops()
+	_monorail()
+	_commit_batches()
 	spawn_point = block_center(center, center) + Vector3(0, CURB_H + 1.2, SLAB / 2.0 - 2.0)
 	station_point = block_center(center, center - 1) + Vector3(0, CURB_H + 1.2, 0)
 	hospital_point = block_center(center + 1, center) + Vector3(0, CURB_H + 1.2, 0)
@@ -288,13 +298,8 @@ func _skyline() -> void:
 		var dist := r2.randf_range(380.0, 540.0)
 		var w := r2.randf_range(25.0, 60.0)
 		var h := r2.randf_range(50.0, 160.0)
-		var mi := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(w, h, w)
-		mesh.material = building_mats[r2.randi_range(0, building_mats.size() - 1)]
-		mi.mesh = mesh
-		mi.position = Vector3(cos(ang) * dist, h / 2.0 - 6.0, sin(ang) * dist)
-		add_child(mi)
+		bb.box(building_mats[r2.randi_range(0, building_mats.size() - 1)],
+			Vector3(w, h, w), Vector3(cos(ang) * dist, h / 2.0 - 6.0, sin(ang) * dist))
 
 func _perimeter_walls() -> void:
 	var wall_mat := _mat(Color(0.06, 0.06, 0.1), Color(0.71, 0.29, 1.0), 1.8)
@@ -344,28 +349,33 @@ func _building(base: Vector3) -> void:
 		tiers = [[w, d, h * 0.55], [w * 0.72, d * 0.72, h * 0.3], [w * 0.5, d * 0.5, h * 0.15]]
 	var y := CURB_H
 	var first_body: StaticBody3D = null
-	var top: StaticBody3D = null
 	for t in tiers:
 		var th: float = t[2]
-		top = _static_box(self, Vector3(t[0], th, t[1]), base + Vector3(0, y + th / 2.0, 0), mat)
+		var body := _static_box(self, Vector3(t[0], th, t[1]), base + Vector3(0, y + th / 2.0, 0), mat)
 		if first_body == null:
-			first_body = top
+			first_body = body
 		y += th
+	# Occluder so towers hide whatever is behind them at street level.
+	var occ := OccluderInstance3D.new()
+	var occ_box := BoxOccluder3D.new()
+	occ_box.size = Vector3(w * 0.9, float(tiers[0][2]), d * 0.9)
+	occ.occluder = occ_box
+	occ.position = base + Vector3(0, CURB_H + float(tiers[0][2]) / 2.0, 0)
+	add_child(occ)
 	var tw: float = tiers[-1][0]
 	var td: float = tiers[-1][1]
-	var th_top: float = tiers[-1][2]
 	# Dark roof cap so rooftops read correctly from above.
 	var roof_mat := _mat(Color(0.13, 0.13, 0.15))
-	_box(top, Vector3(tw + 0.2, 0.4, td + 0.2), Vector3(0, th_top / 2.0 + 0.2, 0), roof_mat)
+	bb.box(roof_mat, Vector3(tw + 0.2, 0.4, td + 0.2), base + Vector3(0, y + 0.2, 0))
 	# Neon roofline trim on some towers.
 	if rng.randf() < 0.45:
 		var neon: Color = NEON_PALETTE[rng.randi_range(0, NEON_PALETTE.size() - 1)]
 		var trim := _mat(Color(0.05, 0.05, 0.07), neon, 3.6)
-		var ty := th_top / 2.0 - 0.3
-		_box(top, Vector3(tw + 0.3, 0.25, 0.25), Vector3(0, ty, td / 2.0 + 0.1), trim)
-		_box(top, Vector3(tw + 0.3, 0.25, 0.25), Vector3(0, ty, -td / 2.0 - 0.1), trim)
-		_box(top, Vector3(0.25, 0.25, td + 0.3), Vector3(tw / 2.0 + 0.1, ty, 0), trim)
-		_box(top, Vector3(0.25, 0.25, td + 0.3), Vector3(-tw / 2.0 - 0.1, ty, 0), trim)
+		var ty := y - 0.3
+		bb.box(trim, Vector3(tw + 0.3, 0.25, 0.25), base + Vector3(0, ty, td / 2.0 + 0.1))
+		bb.box(trim, Vector3(tw + 0.3, 0.25, 0.25), base + Vector3(0, ty, -td / 2.0 - 0.1))
+		bb.box(trim, Vector3(0.25, 0.25, td + 0.3), base + Vector3(tw / 2.0 + 0.1, ty, 0))
+		bb.box(trim, Vector3(0.25, 0.25, td + 0.3), base + Vector3(-tw / 2.0 - 0.1, ty, 0))
 	# Antenna with a blinking aircraft beacon on the tallest towers.
 	if h >= 40.0 and rng.randf() < 0.6:
 		var pole := MeshInstance3D.new()
@@ -487,20 +497,11 @@ func _warehouse_block(i: int, j: int) -> void:
 	add_child(label)
 
 func _streetlights(c: Vector3) -> void:
-	var pole_mat := _mat(Color(0.15, 0.15, 0.17))
 	var head_mat := _mat(Color(0.2, 0.2, 0.18), Color(1.0, 0.85, 0.55), 2.6)
 	for corner: Vector3 in [Vector3(-1, 0, -1), Vector3(1, 0, 1)]:
 		var p := c + corner * (SLAB / 2.0 - 0.8)
-		var pole := MeshInstance3D.new()
-		var pm := CylinderMesh.new()
-		pm.top_radius = 0.07
-		pm.bottom_radius = 0.1
-		pm.height = 5.0
-		pm.material = pole_mat
-		pole.mesh = pm
-		pole.position = p + Vector3(0, CURB_H + 2.5, 0)
-		add_child(pole)
-		_box(self, Vector3(0.5, 0.18, 0.5), p + Vector3(0, CURB_H + 5.1, 0), head_mat)
+		pole_transforms.append(Transform3D(Basis.IDENTITY, p + Vector3(0, CURB_H + 2.5, 0)))
+		bb.box(head_mat, Vector3(0.5, 0.18, 0.5), p + Vector3(0, CURB_H + 5.1, 0))
 		if light_budget > 0 and rng.randf() < 0.55:
 			light_budget -= 1
 			var lamp := OmniLight3D.new()
@@ -511,24 +512,8 @@ func _streetlights(c: Vector3) -> void:
 			lamp.distance_fade_enabled = true
 			lamp.distance_fade_begin = 120.0
 			add_child(lamp)
-			# Fake volumetric cone under the lamp head.
-			var cone := MeshInstance3D.new()
-			var cm := CylinderMesh.new()
-			cm.top_radius = 0.12
-			cm.bottom_radius = 2.3
-			cm.height = 4.6
-			var conem := StandardMaterial3D.new()
-			conem.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			conem.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			conem.albedo_color = Color(1.0, 0.85, 0.55, 0.06)
-			conem.emission_enabled = true
-			conem.emission = Color(1.0, 0.85, 0.55)
-			conem.emission_energy_multiplier = 0.3
-			conem.cull_mode = BaseMaterial3D.CULL_DISABLED
-			cm.material = conem
-			cone.mesh = cm
-			cone.position = p + Vector3(0, CURB_H + 2.8, 0)
-			add_child(cone)
+			# Fake volumetric cone under the lamp head (instanced later).
+			cone_transforms.append(Transform3D(Basis.IDENTITY, p + Vector3(0, CURB_H + 2.8, 0)))
 
 func _parked_cars() -> void:
 	var car_script := preload("res://scripts/Car.gd")
@@ -651,6 +636,16 @@ func spawn_pigeon_flock(near: Vector3) -> void:
 func _process(delta: float) -> void:
 	if holo != null:
 		holo.rotation.y += delta * 0.5
+	# Monorail circles the city forever.
+	train_t += delta * 16.0
+	for i in train_cars.size():
+		var car: Node3D = train_cars[i]
+		var p := train_t - float(i) * 8.6
+		var pos := _rail_pos(p)
+		var dir := _rail_pos(p + 2.0) - pos
+		car.position = pos
+		if dir.length() > 0.01:
+			car.rotation.y = atan2(-dir.x, -dir.z)
 	# Aircraft beacons blink in unison, neon signs flicker individually.
 	blink_t += delta
 	if blink_t > 0.7:
@@ -666,6 +661,116 @@ func _process(delta: float) -> void:
 			if is_instance_valid(node):
 				node.visible = not node.visible
 				f["t"] = rng.randf_range(0.04, 0.18) if node.visible == false else rng.randf_range(1.5, 6.0)
+
+func _commit_batches() -> void:
+	bb.commit(self)
+	# Streetlight poles, one instanced draw.
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.07
+	pole_mesh.bottom_radius = 0.1
+	pole_mesh.height = 5.0
+	pole_mesh.material = _mat(Color(0.15, 0.15, 0.17))
+	_multi(pole_mesh, pole_transforms)
+	# Lamp light cones, one instanced draw.
+	var cone_mesh := CylinderMesh.new()
+	cone_mesh.top_radius = 0.12
+	cone_mesh.bottom_radius = 2.3
+	cone_mesh.height = 4.6
+	var conem := StandardMaterial3D.new()
+	conem.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	conem.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	conem.albedo_color = Color(1.0, 0.85, 0.55, 0.06)
+	conem.emission_enabled = true
+	conem.emission = Color(1.0, 0.85, 0.55)
+	conem.emission_energy_multiplier = 0.3
+	conem.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cone_mesh.material = conem
+	_multi(cone_mesh, cone_transforms)
+
+func _multi(mesh: Mesh, transforms: Array[Transform3D]) -> void:
+	if transforms.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = transforms.size()
+	for i in transforms.size():
+		mm.set_instance_transform(i, transforms[i])
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	add_child(inst)
+
+func _spray_shops() -> void:
+	# Pay N Spray: drive in hot, drive out invisible (for a fee).
+	var spots := [
+		Vector3(line(1) + 5.0, 0, line(2) + 5.0),
+		Vector3(line(9) - 5.0, 0, line(8) - 5.0),
+		Vector3(line(5) + 5.0, 0, line(9) - 5.0),
+	]
+	var ring_mat := _mat(Color(0.05, 0.05, 0.07), Color(1.0, 0.18, 0.58), 3.2)
+	for s: Vector3 in spots:
+		spray_points.append(s)
+		var ring := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = 4.2
+		torus.outer_radius = 4.8
+		torus.material = ring_mat
+		ring.mesh = torus
+		ring.position = s + Vector3(0, 0.3, 0)
+		add_child(ring)
+		var label := Label3D.new()
+		label.text = "PAY N SPRAY  $300"
+		label.font_size = 96
+		label.pixel_size = 0.012
+		label.modulate = Color(1.6, 0.4, 1.0)
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.position = s + Vector3(0, 6.5, 0)
+		add_child(label)
+		CityGen.add_blip(ring, Color(1.0, 0.18, 0.58), 2.4)
+
+func _monorail() -> void:
+	# Elevated monorail loop above the outer ring road.
+	var beam_mat := _mat(Color(0.1, 0.1, 0.14), Color(0.14, 0.9, 1.0), 0.8)
+	var half := N * PITCH / 2.0
+	var y := 11.0
+	bb.box(beam_mat, Vector3(half * 2.0 + 2.0, 0.5, 1.2), Vector3(0, y, -half))
+	bb.box(beam_mat, Vector3(half * 2.0 + 2.0, 0.5, 1.2), Vector3(0, y, half))
+	bb.box(beam_mat, Vector3(1.2, 0.5, half * 2.0 + 2.0), Vector3(-half, y, 0))
+	bb.box(beam_mat, Vector3(1.2, 0.5, half * 2.0 + 2.0), Vector3(half, y, 0))
+	var pillar_mat := _mat(Color(0.12, 0.12, 0.15))
+	var k := -half
+	while k <= half:
+		bb.box(pillar_mat, Vector3(0.8, y, 0.8), Vector3(k, y / 2.0, -half))
+		bb.box(pillar_mat, Vector3(0.8, y, 0.8), Vector3(k, y / 2.0, half))
+		bb.box(pillar_mat, Vector3(0.8, y, 0.8), Vector3(-half, y / 2.0, k))
+		bb.box(pillar_mat, Vector3(0.8, y, 0.8), Vector3(half, y / 2.0, k))
+		k += 48.0
+	_build_train()
+
+func _build_train() -> void:
+	var shell := _mat(Color(0.82, 0.85, 0.92))
+	var win := _mat(Color(0.05, 0.08, 0.1), Color(0.9, 0.95, 1.0), 1.8)
+	var nose := _mat(Color(0.1, 0.1, 0.12), Color(0.14, 0.9, 1.0), 2.5)
+	for i in 3:
+		var car := Node3D.new()
+		add_child(car)
+		_box(car, Vector3(2.2, 1.9, 7.0), Vector3(0, 1.2, 0), shell)
+		_box(car, Vector3(2.26, 0.6, 5.8), Vector3(0, 1.45, 0), win)
+		if i == 0:
+			_box(car, Vector3(1.6, 0.4, 0.2), Vector3(0, 1.0, -3.55), nose)
+		train_cars.append(car)
+
+func _rail_pos(p: float) -> Vector3:
+	var half := N * PITCH / 2.0
+	var l := half * 2.0
+	p = fposmod(p, 4.0 * l)
+	var edge := int(p / l)
+	var t := p - edge * l
+	match edge:
+		0: return Vector3(-half + t, 11.4, -half)
+		1: return Vector3(half, 11.4, -half + t)
+		2: return Vector3(half - t, 11.4, half)
+		_: return Vector3(-half, 11.4, half - t)
 
 # ------------------------------------------------------------ helpers
 
@@ -708,12 +813,18 @@ func _make_building_mats() -> void:
 		building_mats.append(mat)
 
 func _mat(albedo: Color, emiss: Color = Color.BLACK, energy: float = 0.0) -> StandardMaterial3D:
+	# Cached: identical look = identical material instance, so MeshBatch
+	# can merge everything that shares it into one surface.
+	var key := "%s|%s|%.2f" % [albedo.to_html(), emiss.to_html(), energy]
+	if _mat_cache.has(key):
+		return _mat_cache[key]
 	var m := StandardMaterial3D.new()
 	m.albedo_color = albedo
 	if energy > 0.0:
 		m.emission_enabled = true
 		m.emission = emiss
 		m.emission_energy_multiplier = energy
+	_mat_cache[key] = m
 	return m
 
 func _box(parent: Node, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
@@ -727,20 +838,16 @@ func _box(parent: Node, size: Vector3, pos: Vector3, mat: Material) -> MeshInsta
 	return mi
 
 func _static_box(parent: Node, size: Vector3, pos: Vector3, mat: Material) -> StaticBody3D:
+	# Collision is its own node; the visual goes into the merged batch.
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size
 	cs.shape = shape
 	body.add_child(cs)
-	var mi := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.material = mat
-	mi.mesh = mesh
-	body.add_child(mi)
 	body.position = pos
 	parent.add_child(body)
+	bb.box(mat, size, pos)
 	return body
 
 static func add_blip(node: Node3D, color: Color, radius: float = 3.0) -> MeshInstance3D:

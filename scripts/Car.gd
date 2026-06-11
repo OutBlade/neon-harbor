@@ -15,10 +15,14 @@ var enter_cooldown := 0.0
 var headlights: Array = []
 var head_beam: SpotLight3D
 var tail_mat: StandardMaterial3D
+var paint_mat: StandardMaterial3D
 var wheels: Array = []
 var smoke: GPUParticles3D
+var flame: GPUParticles3D
 var air_time := 0.0
 var stunt_slowmo := false
+var nitro := 1.0
+var boosting := false
 
 func setup(kind_: String, color_: Color) -> void:
 	kind = kind_
@@ -42,6 +46,11 @@ func _ready() -> void:
 		power = 5200.0
 		top_speed = 31.0
 		color = Color(0.08, 0.08, 0.1)
+	elif kind == "swat":
+		power = 6800.0
+		top_speed = 29.0
+		mass = 1500.0
+		color = Color(0.05, 0.05, 0.06)
 	_build_body()
 	_build_wheels()
 	engine_audio = AudioStreamPlayer3D.new()
@@ -77,6 +86,34 @@ func _build_smoke() -> void:
 	smoke.draw_pass_1 = quad
 	smoke.position = Vector3(0, 0.3, 1.6)
 	add_child(smoke)
+	# Nitro exhaust flame.
+	flame = GPUParticles3D.new()
+	flame.amount = 40
+	flame.lifetime = 0.25
+	flame.emitting = false
+	var fpm := ParticleProcessMaterial.new()
+	fpm.direction = Vector3(0, 0.2, 1)
+	fpm.spread = 8.0
+	fpm.initial_velocity_min = 9.0
+	fpm.initial_velocity_max = 14.0
+	fpm.gravity = Vector3.ZERO
+	fpm.scale_min = 0.4
+	fpm.scale_max = 1.0
+	flame.process_material = fpm
+	var fq := QuadMesh.new()
+	fq.size = Vector2(0.3, 0.3)
+	var fm := StandardMaterial3D.new()
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fm.albedo_color = Color(1.0, 0.55, 0.1, 0.8)
+	fm.emission_enabled = true
+	fm.emission = Color(1.0, 0.5, 0.1)
+	fm.emission_energy_multiplier = 4.0
+	fq.material = fm
+	flame.draw_pass_1 = fq
+	flame.position = Vector3(0, 0.45, 2.2)
+	add_child(flame)
 
 func _build_body() -> void:
 	var cs := CollisionShape3D.new()
@@ -89,12 +126,19 @@ func _build_body() -> void:
 	paint.albedo_color = color
 	paint.metallic = 0.6
 	paint.roughness = 0.35
+	paint_mat = paint
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(0.08, 0.1, 0.13)
 	glass.metallic = 0.8
 	glass.roughness = 0.1
 	var low_h := 0.5 if kind == "sports" else 0.6
-	_box(Vector3(1.95, low_h, 4.3), Vector3(0, 0.35 + low_h / 2.0, 0), paint)
+	if kind == "swat":
+		# Armored van: tall slab body, white stripe, no subtlety.
+		_box(Vector3(2.3, 1.5, 5.0), Vector3(0, 1.1, 0), paint)
+		_box(Vector3(2.32, 0.25, 5.0), Vector3(0, 1.25, 0), _light_mat(Color(0.9, 0.9, 1.0), 0.6))
+		low_h = 1.5
+	else:
+		_box(Vector3(1.95, low_h, 4.3), Vector3(0, 0.35 + low_h / 2.0, 0), paint)
 	_box(Vector3(1.7, 0.45, 2.0), Vector3(0, 0.35 + low_h + 0.22, 0.15), glass)
 	# Angled windshield and rear glass for an actual car silhouette.
 	var front_glass := _box(Vector3(1.62, 0.05, 1.0), Vector3(0, 0.35 + low_h + 0.24, -0.78), glass)
@@ -222,6 +266,7 @@ func _stunt_tracking(delta: float) -> void:
 			Game.add_money(bonus)
 			Game.notify.emit("STUNT BONUS! %.1f seconds of air" % air_time)
 			Game.sound.play_ui("jingle")
+			Game.set_record("best_air", air_time)
 		air_time = 0.0
 
 func _player_control(delta: float) -> void:
@@ -234,14 +279,26 @@ func _player_control(delta: float) -> void:
 	var speed := forward_speed()
 	engine_force = 0.0
 	brake = 0.0
+	# Nitro: hold sprint while accelerating. Drains fast, recharges slow.
+	boosting = Input.is_action_pressed("sprint") and throttle > 0.0 and nitro > 0.0
+	var cap := top_speed + (9.0 if boosting else 0.0)
+	var force := power * (1.9 if boosting else 1.0)
+	if boosting:
+		nitro = maxf(nitro - delta * 0.32, 0.0)
+	else:
+		nitro = minf(nitro + delta * 0.1, 1.0)
+	flame.emitting = boosting
 	if throttle > 0.0:
-		if linear_velocity.length() < top_speed:
-			engine_force = throttle * power
+		if linear_velocity.length() < cap:
+			engine_force = throttle * force
 	elif throttle < 0.0:
 		if speed > 1.5:
 			brake = 45.0
 		else:
 			engine_force = throttle * power * 0.5
+	var kmh := linear_velocity.length() * 3.6
+	if kmh > 30.0:
+		Game.set_record("top_speed", kmh)
 	var handbraking := Input.is_action_pressed("handbrake")
 	if handbraking:
 		brake = 70.0
@@ -260,10 +317,17 @@ func _player_control(delta: float) -> void:
 
 func _honk() -> void:
 	_play_oneshot(["horn", "clown", "airhorn"][Game.horn_style])
-	# Honking startles everyone on the sidewalk nearby.
+	# Honking startles everyone nearby. The airhorn starts a dance party.
 	for ped in get_tree().get_nodes_in_group("peds"):
 		if ped.global_position.distance_to(global_position) < 12.0:
-			ped.scare(global_position)
+			if Game.horn_style == 2 and Game.rng.randf() < 0.6:
+				ped.dance()
+			else:
+				ped.scare(global_position)
+
+func repaint(c: Color) -> void:
+	color = c
+	paint_mat.albedo_color = c
 
 func _ai_control(_delta: float) -> void:
 	engine_force = 0.0

@@ -21,6 +21,10 @@ var toast_box: VBoxContainer
 var map_container: SubViewportContainer
 var map_frame: Panel
 var map_camera: Camera3D
+var map_vp: SubViewport
+var map_tick := 0
+var nitro_bg: ColorRect
+var nitro_fill: ColorRect
 
 func _ready() -> void:
 	var root := Control.new()
@@ -70,6 +74,20 @@ func _ready() -> void:
 	fps_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	fps_label.position = Vector2(-110, 12)
 
+	nitro_bg = ColorRect.new()
+	nitro_bg.color = Color(0.05, 0.08, 0.15, 0.8)
+	nitro_bg.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	nitro_bg.position = Vector2(-200, -26)
+	nitro_bg.size = Vector2(150, 10)
+	nitro_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(nitro_bg)
+	nitro_fill = ColorRect.new()
+	nitro_fill.color = Color(0.3, 0.95, 1.0)
+	nitro_fill.position = Vector2(2, 2)
+	nitro_fill.size = Vector2(146, 6)
+	nitro_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	nitro_bg.add_child(nitro_fill)
+
 	prompt_label = _label(root, 22, Color.WHITE)
 	prompt_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	prompt_label.position = Vector2(-150, -140)
@@ -82,7 +100,7 @@ func _ready() -> void:
 	big_label.modulate.a = 0.0
 
 	var hint := _label(root, 13, Color(1, 1, 1, 0.45))
-	hint.text = "WASD move    E enter or exit    Space jump or handbrake    H horn  J horn style  R radio    M map    Esc pause"
+	hint.text = "WASD move    E enter/exit    Shift nitro    Space jump/handbrake    H horn  J style  R radio    P photo    M map    Esc pause"
 	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	hint.position = Vector2(-360, -34)
 
@@ -137,7 +155,9 @@ func _build_minimap(root: Control) -> void:
 	map_container.self_modulate = Color(1, 1, 1, 0.92)
 	root.add_child(map_container)
 	var vp := SubViewport.new()
-	vp.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	map_vp = vp
+	# Throttled: the map redraws at a quarter of the frame rate.
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	map_container.add_child(vp)
 	map_camera = Camera3D.new()
 	map_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -157,8 +177,15 @@ func _process(_delta: float) -> void:
 	if Game.player_car != null:
 		speed_label.text = "%d km/h" % int(Game.player_car.linear_velocity.length() * 3.6)
 		speed_label.visible = true
+		nitro_bg.visible = true
+		nitro_fill.size.x = 146.0 * clampf(Game.player_car.nitro, 0.0, 1.0)
+		nitro_fill.color = Color(1.0, 0.6, 0.15) if Game.player_car.boosting else Color(0.3, 0.95, 1.0)
 	else:
 		speed_label.visible = false
+		nitro_bg.visible = false
+	map_tick += 1
+	if map_container.visible and map_tick % 4 == 0:
+		map_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_minimap"):

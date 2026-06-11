@@ -18,8 +18,9 @@ func _init() -> void:
 func _ready() -> void:
 	super()
 	add_to_group("police")
-	bar_red = _box(Vector3(0.5, 0.16, 0.4), Vector3(-0.45, 1.42, 0.1), _light_mat(Color(1, 0.05, 0.05), 5.0))
-	bar_blue = _box(Vector3(0.5, 0.16, 0.4), Vector3(0.45, 1.42, 0.1), _light_mat(Color(0.1, 0.2, 1), 5.0))
+	var bar_y := 2.05 if kind == "swat" else 1.42
+	bar_red = _box(Vector3(0.5, 0.16, 0.4), Vector3(-0.45, bar_y, 0.1), _light_mat(Color(1, 0.05, 0.05), 5.0))
+	bar_blue = _box(Vector3(0.5, 0.16, 0.4), Vector3(0.45, bar_y, 0.1), _light_mat(Color(0.1, 0.2, 1), 5.0))
 	flash_light = OmniLight3D.new()
 	flash_light.position = Vector3(0, 1.8, 0)
 	flash_light.omni_range = 10.0
