@@ -14,15 +14,28 @@ func _ready() -> void:
 	gray.albedo_color = Color(0.55, 0.55, 0.6)
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.3, 0.32, 0.4)
+	# Iridescent neck patch, the pigeon signature.
+	var irid := StandardMaterial3D.new()
+	irid.albedo_color = Color(0.25, 0.45, 0.4)
+	irid.metallic = 0.8
+	irid.roughness = 0.25
+	var beak := StandardMaterial3D.new()
+	beak.albedo_color = Color(0.8, 0.6, 0.3)
 	for i in 4:
 		var bird := Node3D.new()
 		bird.position = Vector3(randf_range(-1.2, 1.2), 0, randf_range(-1.2, 1.2))
 		bird.rotation.y = randf() * TAU
 		add_child(bird)
 		_part(bird, Vector3(0.16, 0.14, 0.24), Vector3(0, 0.12, 0), gray)
-		_part(bird, Vector3(0.1, 0.1, 0.1), Vector3(0, 0.24, 0.12), dark)
+		_part(bird, Vector3(0.09, 0.07, 0.08), Vector3(0, 0.16, 0.13), irid)   # neck
+		_part(bird, Vector3(0.1, 0.1, 0.1), Vector3(0, 0.24, 0.14), dark)      # head
+		_part(bird, Vector3(0.03, 0.025, 0.06), Vector3(0, 0.235, 0.21), beak) # beak
+		_part(bird, Vector3(0.12, 0.03, 0.14), Vector3(0, 0.12, -0.15), dark)  # tail fan
 		var w1 := _part(bird, Vector3(0.2, 0.02, 0.14), Vector3(-0.12, 0.16, 0), dark)
 		var w2 := _part(bird, Vector3(0.2, 0.02, 0.14), Vector3(0.12, 0.16, 0), dark)
+		# Matchstick legs.
+		_part(bird, Vector3(0.015, 0.06, 0.015), Vector3(-0.04, 0.025, 0), beak)
+		_part(bird, Vector3(0.015, 0.06, 0.015), Vector3(0.04, 0.025, 0), beak)
 		pigeons.append({"node": bird, "w1": w1, "w2": w2,
 			"dir": Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()})
 

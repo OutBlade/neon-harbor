@@ -122,41 +122,110 @@ func _build_body() -> void:
 	cs.shape = shape
 	cs.position = Vector3(0, 0.78, 0)
 	add_child(cs)
+	# Materials: clear-coat metallic paint, tinted glass, satin trim, chrome.
 	var paint := StandardMaterial3D.new()
 	paint.albedo_color = color
-	paint.metallic = 0.6
-	paint.roughness = 0.35
+	paint.metallic = 0.85
+	paint.roughness = 0.22
+	paint.clearcoat_enabled = true
+	paint.clearcoat = 0.8
+	paint.clearcoat_roughness = 0.1
 	paint_mat = paint
+	var paint_dark := StandardMaterial3D.new()
+	paint_dark.albedo_color = Color(color.r * 0.55, color.g * 0.55, color.b * 0.55)
+	paint_dark.metallic = 0.7
+	paint_dark.roughness = 0.35
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(0.08, 0.1, 0.13)
-	glass.metallic = 0.8
-	glass.roughness = 0.1
+	glass.metallic = 0.9
+	glass.roughness = 0.06
+	var trim := StandardMaterial3D.new()
+	trim.albedo_color = Color(0.09, 0.09, 0.1)
+	trim.metallic = 0.3
+	trim.roughness = 0.6
+	var chrome := StandardMaterial3D.new()
+	chrome.albedo_color = Color(0.75, 0.76, 0.8)
+	chrome.metallic = 1.0
+	chrome.roughness = 0.15
 	var low_h := 0.5 if kind == "sports" else 0.6
 	if kind == "swat":
 		# Armored van: tall slab body, white stripe, no subtlety.
 		_box(Vector3(2.3, 1.5, 5.0), Vector3(0, 1.1, 0), paint)
 		_box(Vector3(2.32, 0.25, 5.0), Vector3(0, 1.25, 0), _light_mat(Color(0.9, 0.9, 1.0), 0.6))
 		_box(Vector3(1.6, 0.4, 0.2), Vector3(0, 1.0, 2.55), _light_mat(Color(0.14, 0.9, 1.0), 2.0))
+		# Ram plate, side steps and a roof hatch.
+		var ram := _box(Vector3(2.0, 0.7, 0.22), Vector3(0, 0.75, 2.62), trim)
+		ram.rotation.x = -0.18
+		_box(Vector3(0.28, 0.1, 3.4), Vector3(-1.25, 0.42, 0), trim)
+		_box(Vector3(0.28, 0.1, 3.4), Vector3(1.25, 0.42, 0), trim)
+		_box(Vector3(0.9, 0.08, 0.9), Vector3(0, 1.9, -0.8), trim)
+		_box(Vector3(2.2, 0.22, 0.3), Vector3(0, 0.5, -2.55), trim)
 		low_h = 1.5
 	else:
+		# Lower body with a shoulder line, rockers and fender flares.
 		_box(Vector3(1.95, low_h, 4.3), Vector3(0, 0.35 + low_h / 2.0, 0), paint)
+		_box(Vector3(1.99, 0.09, 4.24), Vector3(0, 0.35 + low_h - 0.06, 0), paint_dark)
+		_box(Vector3(1.97, 0.16, 2.3), Vector3(0, 0.36, 0), trim)
+		for fx: float in [-0.93, 0.93]:
+			for fz: float in [1.4, -1.4]:
+				_box(Vector3(0.24, 0.3, 1.02), Vector3(fx, 0.66, fz), paint_dark)
+		# Bumpers, grille, plates.
+		_box(Vector3(1.98, 0.2, 0.24), Vector3(0, 0.46, 2.18), trim)
+		_box(Vector3(1.98, 0.2, 0.24), Vector3(0, 0.46, -2.18), trim)
+		_box(Vector3(1.0, 0.15, 0.06), Vector3(0, 0.64, 2.18), trim)
+		var plate := StandardMaterial3D.new()
+		plate.albedo_color = Color(0.8, 0.8, 0.75)
+		_box(Vector3(0.36, 0.13, 0.03), Vector3(0, 0.46, 2.31), plate)
+		_box(Vector3(0.36, 0.13, 0.03), Vector3(0, 0.46, -2.31), plate)
+		# Wing mirrors and door handles.
+		for mx: float in [-1.04, 1.04]:
+			_box(Vector3(0.14, 0.04, 0.05), Vector3(mx - signf(mx) * 0.06, 0.35 + low_h + 0.14, 0.8), trim)
+			_box(Vector3(0.1, 0.11, 0.18), Vector3(mx, 0.35 + low_h + 0.18, 0.78), trim)
+		for hx: float in [-0.99, 0.99]:
+			for hz: float in [0.45, -0.5]:
+				_box(Vector3(0.03, 0.035, 0.16), Vector3(hx, 0.35 + low_h - 0.04, hz), chrome)
+		# Exhaust tips.
+		if kind == "sports":
+			_box(Vector3(0.1, 0.1, 0.2), Vector3(-0.45, 0.32, -2.22), chrome)
+			_box(Vector3(0.1, 0.1, 0.2), Vector3(0.45, 0.32, -2.22), chrome)
+		else:
+			_box(Vector3(0.09, 0.09, 0.2), Vector3(-0.55, 0.32, -2.22), chrome)
+	# Cabin and angled glass. The nose is local +Z.
 	_box(Vector3(1.7, 0.45, 2.0), Vector3(0, 0.35 + low_h + 0.22, -0.15), glass)
-	# Angled windshield and rear glass. The nose is local +Z.
+	_box(Vector3(1.72, 0.06, 2.02), Vector3(0, 0.35 + low_h + 0.46, -0.15), paint)  # roof skin
+	# A pillars front and rear keep the cabin from reading as a glass cube.
+	for px: float in [-0.82, 0.82]:
+		_box(Vector3(0.08, 0.45, 0.1), Vector3(px, 0.35 + low_h + 0.22, 0.78), paint_dark)
+		_box(Vector3(0.08, 0.45, 0.1), Vector3(px, 0.35 + low_h + 0.22, -1.1), paint_dark)
 	var front_glass := _box(Vector3(1.62, 0.05, 1.0), Vector3(0, 0.35 + low_h + 0.24, 0.78), glass)
 	front_glass.rotation.x = 0.48
 	var rear_glass := _box(Vector3(1.62, 0.05, 0.85), Vector3(0, 0.35 + low_h + 0.26, -1.1), glass)
 	rear_glass.rotation.x = -0.55
-	# Headlights and tail lights.
+	# Headlights and tail lights with chrome bezels.
 	var head := _light_mat(Color(1.0, 0.95, 0.8), 4.0)
 	tail_mat = _light_mat(Color(1.0, 0.1, 0.1), 3.0)
 	headlights.append(_box(Vector3(0.45, 0.15, 0.08), Vector3(-0.6, 0.62, 2.16), head))
 	headlights.append(_box(Vector3(0.45, 0.15, 0.08), Vector3(0.6, 0.62, 2.16), head))
+	_box(Vector3(0.51, 0.2, 0.04), Vector3(-0.6, 0.62, 2.15), trim)
+	_box(Vector3(0.51, 0.2, 0.04), Vector3(0.6, 0.62, 2.15), trim)
 	_box(Vector3(0.45, 0.12, 0.08), Vector3(-0.6, 0.62, -2.16), tail_mat)
 	_box(Vector3(0.45, 0.12, 0.08), Vector3(0.6, 0.62, -2.16), tail_mat)
+	# Amber indicators tucked beside the headlights.
+	var amber := _light_mat(Color(1.0, 0.6, 0.1), 1.4)
+	_box(Vector3(0.1, 0.1, 0.06), Vector3(-0.92, 0.62, 2.16), amber)
+	_box(Vector3(0.1, 0.1, 0.06), Vector3(0.92, 0.62, 2.16), amber)
 	if kind == "sports":
-		# Neon underglow, because of course.
+		# Splitter, hood scoop, rear wing, neon underglow. Of course.
+		_box(Vector3(1.9, 0.08, 0.3), Vector3(0, 0.3, 2.28), trim)
+		_box(Vector3(0.55, 0.09, 0.65), Vector3(0, 0.89, 1.15), trim)
+		_box(Vector3(0.08, 0.2, 0.08), Vector3(-0.62, 0.94, -1.95), trim)
+		_box(Vector3(0.08, 0.2, 0.08), Vector3(0.62, 0.94, -1.95), trim)
+		_box(Vector3(1.78, 0.06, 0.42), Vector3(0, 1.07, -1.98), paint)
 		var glow_col: Color = CityGen.NEON_PALETTE[randi() % CityGen.NEON_PALETTE.size()]
 		_box(Vector3(1.6, 0.05, 3.4), Vector3(0, 0.22, 0), _light_mat(glow_col, 3.5))
+	elif kind == "sedan":
+		var ant := _box(Vector3(0.03, 0.5, 0.03), Vector3(-0.75, 0.35 + low_h + 0.2, -1.85), trim)
+		ant.rotation.x = -0.25
 	# Real headlight beam, enabled only while the player drives this car.
 	head_beam = SpotLight3D.new()
 	head_beam.position = Vector3(0, 1.1, 1.8)
@@ -170,8 +239,17 @@ func _build_body() -> void:
 	if kind == "police":
 		_box(Vector3(1.6, 0.18, 0.5), Vector3(0, 1.32, 0.1), _light_mat(Color(0.9, 0.9, 1.0), 0.5))
 		_box(Vector3(0.6, 0.3, 4.2), Vector3(0, 0.7, 0), _light_mat(Color(1, 1, 1), 0.8))
+		# Push bar on the nose; ramming is the job.
+		_box(Vector3(1.3, 0.08, 0.08), Vector3(0, 0.72, 2.34), trim)
+		_box(Vector3(0.08, 0.45, 0.08), Vector3(-0.5, 0.6, 2.32), trim)
+		_box(Vector3(0.08, 0.45, 0.08), Vector3(0.5, 0.6, 2.32), trim)
 	elif kind == "taxi":
 		_box(Vector3(0.8, 0.22, 0.4), Vector3(0, 1.4, 0.1), _light_mat(Color(1.0, 0.8, 0.2), 2.2))
+		# Checker band along both flanks.
+		var checker := StandardMaterial3D.new()
+		checker.albedo_color = Color(0.08, 0.08, 0.08)
+		for sx: float in [-0.985, 0.985]:
+			_box(Vector3(0.02, 0.13, 3.4), Vector3(sx, 0.74, 0), checker)
 
 func _light_mat(c: Color, energy: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -194,6 +272,15 @@ func _box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
 func _build_wheels() -> void:
 	var tire := StandardMaterial3D.new()
 	tire.albedo_color = Color(0.05, 0.05, 0.05)
+	tire.roughness = 0.9
+	var rim_mat := StandardMaterial3D.new()
+	rim_mat.albedo_color = Color(0.62, 0.62, 0.68)
+	rim_mat.metallic = 0.95
+	rim_mat.roughness = 0.18
+	var cap_mat := StandardMaterial3D.new()
+	cap_mat.albedo_color = Color(0.18, 0.18, 0.2)
+	cap_mat.metallic = 0.5
+	cap_mat.roughness = 0.4
 	for w in [
 		[Vector3(-0.85, 0.4, 1.4), true], [Vector3(0.85, 0.4, 1.4), true],
 		[Vector3(-0.85, 0.4, -1.4), false], [Vector3(0.85, 0.4, -1.4), false],
@@ -218,19 +305,31 @@ func _build_wheels() -> void:
 		mi.mesh = mesh
 		mi.rotation.z = PI / 2.0
 		wheel.add_child(mi)
-		var hub := MeshInstance3D.new()
-		var hub_mesh := CylinderMesh.new()
-		hub_mesh.top_radius = 0.17
-		hub_mesh.bottom_radius = 0.17
-		hub_mesh.height = 0.27
-		var hub_mat := StandardMaterial3D.new()
-		hub_mat.albedo_color = Color(0.55, 0.55, 0.6)
-		hub_mat.metallic = 0.85
-		hub_mat.roughness = 0.25
-		hub_mesh.material = hub_mat
-		hub.mesh = hub_mesh
-		hub.position = Vector3.ZERO
-		mi.add_child(hub)
+		# Rim, six spokes (three bars), center cap.
+		var rim := MeshInstance3D.new()
+		var rim_mesh := CylinderMesh.new()
+		rim_mesh.top_radius = 0.21
+		rim_mesh.bottom_radius = 0.21
+		rim_mesh.height = 0.3
+		rim_mesh.material = rim_mat
+		rim.mesh = rim_mesh
+		mi.add_child(rim)
+		for s in 3:
+			var spoke := MeshInstance3D.new()
+			var sp_mesh := BoxMesh.new()
+			sp_mesh.size = Vector3(0.6, 0.29, 0.075)
+			sp_mesh.material = rim_mat
+			spoke.mesh = sp_mesh
+			spoke.rotation.y = float(s) * PI / 3.0
+			mi.add_child(spoke)
+		var cap := MeshInstance3D.new()
+		var cap_mesh := CylinderMesh.new()
+		cap_mesh.top_radius = 0.07
+		cap_mesh.bottom_radius = 0.07
+		cap_mesh.height = 0.32
+		cap_mesh.material = cap_mat
+		cap.mesh = cap_mesh
+		mi.add_child(cap)
 
 func forward_speed() -> float:
 	# Physics truth: positive engine force drives along local +Z.

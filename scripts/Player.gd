@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody3D
-## Third-person on-foot character. Built entirely from primitives.
+## Third-person on-foot character. Built entirely from primitives,
+## with articulated arms and legs that swing as you move.
 
 signal wasted(reason: String)
 
@@ -12,6 +13,11 @@ const GRAVITY := 14.0
 var body_visual: Node3D
 var nearest_car: VehicleBody3D = null
 var nearest_cat: Node3D = null
+var arm_l: Node3D
+var arm_r: Node3D
+var leg_l: Node3D
+var leg_r: Node3D
+var walk_phase := 0.0
 
 func _ready() -> void:
 	add_to_group("player")
@@ -28,7 +34,12 @@ func _ready() -> void:
 func _build_visual() -> void:
 	body_visual = Node3D.new()
 	add_child(body_visual)
-	var jacket := _part(Vector3(0.55, 0.62, 0.3), Vector3(0, 1.12, 0), Color(0.15, 0.12, 0.25))
+	var jacket_col := Color(0.15, 0.12, 0.25)
+	var skin := Color(0.85, 0.65, 0.5)
+	var jacket := _part(Vector3(0.55, 0.62, 0.3), Vector3(0, 1.12, 0), jacket_col)
+	jacket.name = "Jacket"
+	# Collar and the glowing chest stripe.
+	_part(Vector3(0.42, 0.08, 0.26), Vector3(0, 1.46, 0), Color(0.10, 0.08, 0.18))
 	var glow := StandardMaterial3D.new()
 	glow.albedo_color = Color(0.1, 0.1, 0.1)
 	glow.emission_enabled = true
@@ -41,10 +52,63 @@ func _build_visual() -> void:
 	stripe.mesh = sm
 	stripe.position = Vector3(0, 1.3, 0)
 	body_visual.add_child(stripe)
-	jacket.name = "Jacket"
-	_part(Vector3(0.3, 0.3, 0.28), Vector3(0, 1.62, 0), Color(0.85, 0.65, 0.5))   # head
-	_part(Vector3(0.2, 0.55, 0.22), Vector3(-0.16, 0.42, 0), Color(0.1, 0.1, 0.14)) # legs
-	_part(Vector3(0.2, 0.55, 0.22), Vector3(0.16, 0.42, 0), Color(0.1, 0.1, 0.14))
+	# Head: skin, swept hair, a faint cyan visor.
+	_part(Vector3(0.3, 0.3, 0.28), Vector3(0, 1.62, 0), skin)
+	_part(Vector3(0.32, 0.13, 0.3), Vector3(0, 1.78, -0.02), Color(0.08, 0.07, 0.1))
+	_part(Vector3(0.32, 0.16, 0.1), Vector3(0, 1.66, -0.12), Color(0.08, 0.07, 0.1))
+	var visor := MeshInstance3D.new()
+	var vm := BoxMesh.new()
+	vm.size = Vector3(0.26, 0.05, 0.02)
+	var visor_mat := StandardMaterial3D.new()
+	visor_mat.albedo_color = Color(0.05, 0.05, 0.08)
+	visor_mat.emission_enabled = true
+	visor_mat.emission = Color(0.14, 0.9, 1.0)
+	visor_mat.emission_energy_multiplier = 1.2
+	vm.material = visor_mat
+	visor.mesh = vm
+	visor.position = Vector3(0, 1.64, 0.15)
+	body_visual.add_child(visor)
+	# Articulated limbs: pivot at the joint, mesh hangs below it.
+	arm_l = _limb(Vector3(-0.36, 1.4, 0), Vector3(0.16, 0.5, 0.2), jacket_col, skin, 0.13)
+	arm_r = _limb(Vector3(0.36, 1.4, 0), Vector3(0.16, 0.5, 0.2), jacket_col, skin, 0.13)
+	leg_l = _limb(Vector3(-0.16, 0.85, 0), Vector3(0.2, 0.6, 0.22), Color(0.1, 0.1, 0.14), Color.BLACK, 0.0)
+	leg_r = _limb(Vector3(0.16, 0.85, 0), Vector3(0.2, 0.6, 0.22), Color(0.1, 0.1, 0.14), Color.BLACK, 0.0)
+	for leg: Node3D in [leg_l, leg_r]:
+		var shoe := MeshInstance3D.new()
+		var shm := BoxMesh.new()
+		shm.size = Vector3(0.21, 0.1, 0.3)
+		var shoe_mat := StandardMaterial3D.new()
+		shoe_mat.albedo_color = Color(0.85, 0.85, 0.88)
+		shm.material = shoe_mat
+		shoe.mesh = shm
+		shoe.position = Vector3(0, -0.66, 0.04)
+		leg.add_child(shoe)
+
+func _limb(pivot_pos: Vector3, size: Vector3, color: Color, tip_color: Color, tip: float) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.position = pivot_pos
+	body_visual.add_child(pivot)
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	mesh.material = m
+	mi.mesh = mesh
+	mi.position = Vector3(0, -size.y / 2.0 - 0.02, 0)
+	pivot.add_child(mi)
+	if tip > 0.0:
+		# Hand poking out of the sleeve.
+		var hand := MeshInstance3D.new()
+		var hm := BoxMesh.new()
+		hm.size = Vector3(tip, tip, tip)
+		var hmat := StandardMaterial3D.new()
+		hmat.albedo_color = tip_color
+		hm.material = hmat
+		hand.mesh = hm
+		hand.position = Vector3(0, -size.y - 0.06, 0)
+		pivot.add_child(hand)
+	return pivot
 
 func _part(size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -86,12 +150,34 @@ func _physics_process(delta: float) -> void:
 		body_visual.rotation.x = lerpf(body_visual.rotation.x, -0.08 * flat.length() / SPRINT, 6.0 * delta)
 	else:
 		body_visual.rotation.x = lerpf(body_visual.rotation.x, 0.0, 6.0 * delta)
+	_animate_limbs(flat.length(), delta)
 	_update_car_prompt()
 	if Input.is_action_just_pressed("interact"):
 		if nearest_cat != null:
 			nearest_cat.pet()
 		elif nearest_car != null:
 			nearest_car.enter(self)
+
+func _animate_limbs(flat_speed: float, delta: float) -> void:
+	# Procedural gait: limbs swing with stride, settle when idle,
+	# arms trail back during a jump.
+	if not is_on_floor():
+		arm_l.rotation.x = lerpf(arm_l.rotation.x, -0.9, 8.0 * delta)
+		arm_r.rotation.x = lerpf(arm_r.rotation.x, -0.9, 8.0 * delta)
+		leg_l.rotation.x = lerpf(leg_l.rotation.x, 0.5, 8.0 * delta)
+		leg_r.rotation.x = lerpf(leg_r.rotation.x, -0.3, 8.0 * delta)
+		return
+	if flat_speed > 0.5:
+		walk_phase += flat_speed * delta * 2.4
+		var amp := 0.75 * clampf(flat_speed / SPRINT, 0.3, 1.0)
+		var s := sin(walk_phase)
+		arm_l.rotation.x = s * amp
+		arm_r.rotation.x = -s * amp
+		leg_l.rotation.x = -s * amp * 0.9
+		leg_r.rotation.x = s * amp * 0.9
+	else:
+		for limb: Node3D in [arm_l, arm_r, leg_l, leg_r]:
+			limb.rotation.x = lerpf(limb.rotation.x, 0.0, 10.0 * delta)
 
 func _update_car_prompt() -> void:
 	nearest_car = null
