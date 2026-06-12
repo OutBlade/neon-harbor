@@ -60,6 +60,18 @@ func setup(citygen: CityGen) -> void:
 			"brief": "Hold 85 km/h for six seconds. Your insurance is not real anyway.",
 			"start": Vector3(144, 0, 236),
 		},
+		{
+			"id": "harbor_run", "title": "HARBOR RUN", "reward": 900, "type": "delivery",
+			"brief": "A crate waits out on the water. Take a boat. Do not take a sedan.",
+			"start": Vector3(L.call(3), 0, 240), "pickup": Vector3(60, 0, 330),
+			"drop": Vector3(-150, 0, 310), "time": 120.0,
+		},
+		{
+			"id": "sky_cache", "title": "AIR MAIL", "reward": 1200, "type": "delivery",
+			"brief": "Someone parked a package sixty meters up. The helicopter is not optional.",
+			"start": Vector3(L.call(9), 0, 224), "pickup": Vector3(0, 60, 0),
+			"drop": Vector3(L.call(9), 0, 226), "time": 150.0,
+		},
 	]
 	_place_next_start()
 

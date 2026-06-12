@@ -38,6 +38,7 @@ func _ready() -> void:
 		_part(bird, Vector3(0.015, 0.06, 0.015), Vector3(0.04, 0.025, 0), beak)
 		pigeons.append({"node": bird, "w1": w1, "w2": w2,
 			"dir": Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()})
+	Game.limit_visibility(self, 80.0)
 
 func _part(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

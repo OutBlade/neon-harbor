@@ -92,6 +92,7 @@ func _ready() -> void:
 	tail.add_child(t2)
 	if Game.cats_petted.has(index):
 		visual.scale = Vector3(0.85, 0.85, 0.85)
+	Game.limit_visibility(self, 130.0)
 
 func _part(size: Vector3, pos: Vector3, mat: Material) -> void:
 	var mi := MeshInstance3D.new()

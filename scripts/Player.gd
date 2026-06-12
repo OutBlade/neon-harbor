@@ -13,6 +13,7 @@ const GRAVITY := 14.0
 var body_visual: Node3D
 var nearest_car: VehicleBody3D = null
 var nearest_cat: Node3D = null
+var nearest_shop: Node3D = null
 var arm_l: Node3D
 var arm_r: Node3D
 var leg_l: Node3D
@@ -155,6 +156,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("interact"):
 		if nearest_cat != null:
 			nearest_cat.pet()
+		elif nearest_shop != null:
+			nearest_shop.try_buy()
 		elif nearest_car != null:
 			nearest_car.enter(self)
 
@@ -194,9 +197,18 @@ func _update_car_prompt() -> void:
 		if d < best_cat:
 			best_cat = d
 			nearest_cat = cat
+	nearest_shop = null
+	var best_shop := 3.2
+	for shop in get_tree().get_nodes_in_group("shops"):
+		var d: float = shop.global_position.distance_to(global_position)
+		if d < best_shop and shop.prompt_text() != "":
+			best_shop = d
+			nearest_shop = shop
 	if Game.hud != null:
 		if nearest_cat != null:
 			Game.hud.set_prompt("Press E to pet the cat")
+		elif nearest_shop != null:
+			Game.hud.set_prompt(nearest_shop.prompt_text())
 		else:
 			Game.hud.set_prompt("Press E to enter the car" if nearest_car != null else "")
 

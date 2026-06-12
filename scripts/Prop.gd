@@ -165,6 +165,9 @@ func _ready() -> void:
 			add_child(rim)
 			_mesh_box(Vector3(0.06, 1.1, 0.06), Vector3(0, 1.5, 0), Color(0.3, 0.3, 0.32))
 
+func _enter_tree() -> void:
+	ready.connect(func() -> void: Game.limit_visibility(self, 95.0), CONNECT_ONE_SHOT)
+
 func _metal(albedo: Color, metallic: float, rough: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = albedo

@@ -7,6 +7,8 @@ enum State { MENU, PLAYING }
 var state := State.MENU
 var city: CityGen
 var missions: MissionManager
+var race_system: RaceSystem
+var income_t := 0.0
 var menu_camera: Camera3D
 var menu_ui: CanvasLayer
 var pause_ui: CanvasLayer
@@ -112,6 +114,8 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	_weather(delta)
+	if Game.playing:
+		_property_income(delta)
 	spray_cooldown = maxf(spray_cooldown - delta, 0.0)
 	tick += delta
 	if tick >= 1.0:
@@ -121,6 +125,33 @@ func _process(delta: float) -> void:
 		_maintain_peds()
 		_check_spray()
 		_taxi_fares()
+
+func _build_properties() -> void:
+	var defs := [
+		["SUDS N SPARKS CAR WASH", 2500, 90, Vector3(CityGen.line(3) + 6.0, 0.3, CityGen.line(6) + 6.0)],
+		["GOLDEN NOODLE BAR", 3500, 130, Vector3(CityGen.line(7) - 6.0, 0.3, CityGen.line(3) - 6.0)],
+		["ARCADE GALAXY", 5000, 190, Vector3(CityGen.line(5) - 6.0, 0.3, CityGen.line(8) + 6.0)],
+	]
+	for d in defs:
+		var p := Property.new()
+		p.setup(d[0], d[1], d[2])
+		p.position = d[3]
+		city.add_child(p)
+
+func _property_income(delta: float) -> void:
+	if Game.owned_props.is_empty():
+		return
+	income_t += delta
+	if income_t < 60.0:
+		return
+	income_t = 0.0
+	var total := 0
+	for shop in get_tree().get_nodes_in_group("shops"):
+		if Game.owned_props.has(shop.prop_name):
+			total += shop.income
+	if total > 0:
+		Game.add_money(total)
+		Game.notify.emit("Your businesses paid $%d" % total)
 
 func _weather(delta: float) -> void:
 	# Slow cycle from drizzle to downpour and back.
@@ -296,6 +327,11 @@ func start_game() -> void:
 	add_child(missions)
 	missions.setup(city)
 	missions.all_completed.connect(_on_campaign_done)
+	race_system = RaceSystem.new()
+	add_child(race_system)
+	race_system.setup(missions)
+	_build_properties()
+	income_t = 0.0
 	prev_stars = 0
 	Game.heat_changed.connect(_on_stars_changed)
 	Game.playing = true
@@ -601,7 +637,7 @@ func _make_controls_panel() -> PanelContainer:
 	panel.visible = false
 	var l := Label.new()
 	l.add_theme_font_size_override("font_size", 18)
-	l.text = "ON FOOT\n  WASD or left stick: move\n  Shift: sprint\n  Space: jump\n  E: enter a car, pet cats\n\nDRIVING\n  W / S: throttle and brake\n  A / D: steer\n  Shift: NITRO\n  Space: handbrake\n  H: horn   J: horn style   R: radio\n  E: get out\n\nGENERAL\n  Mouse: camera\n  P: photo mode (Enter saves)\n  M: toggle minimap\n  Esc: pause\n\nDrive a yellow cab to pick up fares.\nPay N Spray clears your stars for $300.\nGamepad works too. Stay out of the harbor."
+	l.text = "ON FOOT\n  WASD: move   Shift: sprint   Space: jump\n  E: enter vehicles, pet cats, buy shops\n\nDRIVING\n  W / S: throttle and brake   A / D: steer\n  Shift: NITRO   Space: handbrake\n  H: horn   J: horn style   R: radio\n\nBOAT\n  W / S: throttle   A / D: steer\n  Exit near the promenade only\n\nHELICOPTER\n  Space: climb   Shift: descend\n  WASD: move (camera relative)\n  Land before exiting\n\nGENERAL\n  Mouse: camera   P: photo mode   M: map   Esc: pause\n\nPurple rings start street races.\nGold rings sell businesses that pay you every minute.\nPay N Spray clears your stars for $300."
 	panel.add_child(l)
 	return panel
 

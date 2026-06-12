@@ -90,6 +90,7 @@ func build() -> void:
 			else:
 				_block(i, j)
 	_parked_cars()
+	_boats_and_helis()
 	_ramps()
 	_beach_balls()
 	_cats()
@@ -872,6 +873,31 @@ func _parked_cars() -> void:
 		car.position = s[0] + Vector3(0, 0.7, 0)
 		car.rotation.y = s[1]
 		add_child(car)
+
+func _boats_and_helis() -> void:
+	# Speedboats moored along the promenade.
+	var half := N * PITCH / 2.0
+	for x: float in [line(3), line(5) + 12.0, line(8)]:
+		var boat := Boat.new()
+		boat.setup("boat", Color(0.9, 0.9, 0.94))
+		boat.position = Vector3(x, -0.4, half + 12.0)
+		boat.rotation.y = PI
+		add_child(boat)
+		add_blip(boat, Color(0.3, 0.8, 1.0), 2.4)
+	# One helicopter on the warehouse roof, one on a dock helipad.
+	var pad_mat := _mat(Color(0.14, 0.14, 0.16))
+	var ring_mat := _mat(Color(0.05, 0.05, 0.06), Color(1.0, 0.85, 0.2), 2.2)
+	var dock_pad := Vector3(line(9), 0.0, half - 14.0)
+	bb.box(pad_mat, Vector3(10.0, 0.3, 10.0), dock_pad + Vector3(0, 0.15, 0))
+	bb.box(ring_mat, Vector3(7.0, 0.06, 0.5), dock_pad + Vector3(0, 0.34, 3.0))
+	bb.box(ring_mat, Vector3(7.0, 0.06, 0.5), dock_pad + Vector3(0, 0.34, -3.0))
+	bb.box(ring_mat, Vector3(0.5, 0.06, 6.5), dock_pad + Vector3(0, 0.34, 0))
+	for spot: Vector3 in [warehouse_roof + Vector3(-4.0, -0.6, -3.0), dock_pad + Vector3(0, 0.5, 0)]:
+		var heli := Heli.new()
+		heli.setup("heli", Color(0.95, 0.55, 0.1))
+		heli.position = spot
+		add_child(heli)
+		add_blip(heli, Color(1.0, 0.6, 0.1), 2.8)
 
 # ------------------------------------------------------------ fun stuff
 

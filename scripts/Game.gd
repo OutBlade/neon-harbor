@@ -22,6 +22,8 @@ var total_wrecks: int = 0
 var cats_petted: Array = []
 var horn_style: int = 0
 var records: Dictionary = {"top_speed": 0.0, "best_air": 0.0, "longest_chase": 0.0}
+var race_best: Dictionary = {}
+var owned_props: Array = []
 var chase_t := 0.0
 
 const DEFAULT_SETTINGS := {
@@ -77,6 +79,16 @@ func _setup_audio_buses() -> void:
 	AudioServer.set_bus_name(1, "Music")
 	AudioServer.add_bus()
 	AudioServer.set_bus_name(2, "SFX")
+
+static func limit_visibility(root: Node, dist: float) -> void:
+	# Distance-culls detail meshes so prop and character decoration
+	# stops costing draw calls down long streets.
+	if root is GeometryInstance3D:
+		root.visibility_range_end = dist
+		root.visibility_range_end_margin = dist * 0.08
+		root.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	for child in root.get_children():
+		limit_visibility(child, dist)
 
 func setting(key: String) -> Variant:
 	return settings.get(key, DEFAULT_SETTINGS.get(key))
@@ -202,6 +214,8 @@ func save_game() -> void:
 		"total_wrecks": total_wrecks,
 		"cats_petted": cats_petted,
 		"records": records,
+		"race_best": race_best,
+		"owned_props": owned_props,
 		"settings": settings,
 	}))
 
@@ -219,6 +233,8 @@ func load_game() -> void:
 	total_busts = int(data.get("total_busts", 0))
 	total_wrecks = int(data.get("total_wrecks", 0))
 	cats_petted = data.get("cats_petted", [])
+	race_best = data.get("race_best", {})
+	owned_props = data.get("owned_props", [])
 	var saved_records: Variant = data.get("records", {})
 	if typeof(saved_records) == TYPE_DICTIONARY:
 		for k in records:

@@ -43,6 +43,14 @@ Take any car, run jobs for cash, push your luck to five stars. Every chase ends 
 - Zero binary assets in the entire repository: every mesh, texture and sound is generated from code
 - Native builds for both x64 and Windows-on-ARM
 
+## Beyond the streets
+
+- Three speedboats moored at the promenade: real buoyancy, neon waterline, the harbor is finally yours
+- Two helicopters (warehouse roof and the dock helipad): Space climbs, Shift descends, rooftops become destinations
+- Three street races with checkpoints, par times, prize money and persistent best times: drive into a purple ring
+- Three buyable businesses that pay passive income every minute you play
+- Eight story missions, including a boat smuggling run and a sky-high helicopter pickup
+
 ## Make a living
 
 - Nitro boost on every car: hold Shift, watch the bar, breathe flames
