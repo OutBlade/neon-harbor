@@ -1,5 +1,9 @@
 # NEON HARBOR
 
+<!-- project-navigation -->
+[Getting started](#run-from-source) · [Features](#features) · [Documentation](#project-structure)
+<!-- /project-navigation -->
+
 **An open world night city. Steal it one car at a time.**
 
 A hundred blocks of neon towers, a harbor at the edge, and a police force with no sense of humor.
